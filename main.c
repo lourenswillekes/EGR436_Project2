@@ -63,6 +63,8 @@
 
 #include "LCD.h"
 
+#include "environment_sensor.h"     //BME280 library
+
 //Determines Wi-Fi Credentials
 #define J 0
 #define L 1
@@ -88,6 +90,15 @@ volatile uint8_t response_complete = 0;
 volatile int second_count = 0;
 
 int visual_indication = 0;
+
+//structures defined in LCD module
+extern volatile display_cell BME_Senosr;
+
+//BME280 variables
+int res;
+int read_sensor = 0;
+struct bme280_dev dev;
+struct bme280_data compensated_data;
 
 int main(void)
 {
@@ -126,6 +137,14 @@ int main(void)
 
     // initialize timer32
     Timer32_init();
+
+    /*
+     * This method established the settings for the
+     * BME280 BOSCH sensor. Within this method, the
+     * I2C and timer32 modules are initialized for
+     * use in the method.
+     */
+    BME280_Init(&dev);
 
     // initialize uart
     UARTA0_init();
@@ -221,6 +240,9 @@ int main(void)
     currentTime.seconds = second;
     RTC_setFromCalendar(&currentTime);
     //update LCD
+    Timer32_waitms(100);
+    create_data_display();
+    Timer32_waitms(100);
     updateTimeandDate();
     }
 
@@ -242,6 +264,36 @@ int main(void)
             UART_transmitString(EUSCI_A0_BASE, time_and_date);
 
             updateTimeandDate();
+        }
+
+        if((second_count % 20) == 0){
+            //Retrieve sensor values from BME280
+            res = BME280_Read(&dev, &compensated_data);
+
+            //Format pressure measurement
+            float temp_pressure = ( (float) compensated_data.pressure )/ 100.0;
+
+            //convert from kPa to mmHg
+            temp_pressure *= ( 0.760 / 101325.0);
+
+            //scale by 1000 for mmHg. Conversion leaves the value in decimal notation
+            //Save current formated measurement
+            BME_Senosr.pressure = temp_pressure * 1000;
+
+            //Correct for altitude
+            BME_Senosr.pressure += 17;
+
+            //Save formated humidity measurement
+            BME_Senosr.humidity = compensated_data.humidity/1000.0; //Convert value to percentage
+
+            //Convert from degrees C to F and save
+            BME_Senosr.temperature = (((compensated_data.temperature / 100.0) * (9.0/5.0)) + 32.0);
+
+            //This new data is compared with past trends.
+            update_totals();
+
+            //Send new values to the screen
+            updateDataDisplay();
         }
 
     }

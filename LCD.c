@@ -34,12 +34,12 @@ uint16_t highlight_text_color = ST7735_CYAN;
 
 uint8_t LCD_Rotation = 1;
 
-#if 0 == 1
+
 #define increaseing_arrow  24
 #define decreaseing_arrow  25
 #define no_change_arrow    61
-#endif
 
+#if 0 == 1
 //create array for menu item names
 char *menu_names[5] = {
                      {"0.5Hz"},
@@ -48,7 +48,7 @@ char *menu_names[5] = {
                      {"5.0Hz"},
                      {"LED 0/1"}
 };
-
+#endif
 
 
 #if 0 == 1
@@ -89,6 +89,23 @@ volatile display_cell outside={
 };
 #endif
 
+volatile display_cell BME_Senosr={
+                0,      //x_start
+                0,      //x_finish
+                0,      //y_start
+                0,      //y_finish
+                " ",    //display title
+                71.5,    //temp
+                22.5,    //humidity
+                760,     //Pressure
+                0,       //total temp
+                0,       //total humidity
+                0,       //total pressure
+                0,       //measurement count
+                no_change_arrow,
+                no_change_arrow,
+                no_change_arrow
+};
 extern volatile int second_count;
 
 RTC_C_Calendar time;
@@ -174,14 +191,10 @@ void updateForecast(int forecast_code){
     Light_Status new = num_to_enum(forecast_code);
     print_current_status_pic(new);
 }
-
+#endif
 
 void create_data_display(void){
-    //Draw inside display
-    ST7735_DrawString2(110,50,"Out",menu_text_color,ST7735_BLACK);
-
-    //Draw outside display
-    ST7735_DrawString2(20,50,"In",menu_text_color,ST7735_BLACK);
+    ST7735_DrawString2(20,50,"BME Data",menu_text_color,ST7735_BLACK);
     ST7735_DrawFastHLine(0,65,160,grid_color);
     ST7735_DrawString2(0,70,"T",menu_text_color,ST7735_BLACK);
     ST7735_DrawString2(0,90,"H",menu_text_color,ST7735_BLACK);
@@ -189,80 +202,45 @@ void create_data_display(void){
 
     ST7735_DrawString2(0,110,"Bp",menu_text_color,ST7735_BLACK);
     ST7735_DrawFastHLine(0,108,160,grid_color);
-
-    updateTimeandDate();
 }
 
 void updateDataDisplay(void){
     char data[12];
     //print temp
-    //sprintf(data,"%2.1f%cF%c",inside.temperature,247,25);
-    sprintf(data,"%02.0f%cF%c",inside.temperature,247,inside.temp_change_direction);
+    sprintf(data,"%02.0f%cF%c",BME_Senosr.temperature,247,BME_Senosr.temp_change_direction);
     TenMsDelay(1);
     ST7735_DrawString2(20,70,data,menu_text_color,ST7735_BLACK);
 
     //print humidity
-    sprintf(data,"%02.0f%%%c",inside.humidity,inside.humidity_change_direction);
+    sprintf(data,"%02.0f%%%c",BME_Senosr.humidity,BME_Senosr.humidity_change_direction);
     TenMsDelay(1);
     ST7735_DrawString2(20,90,data,menu_text_color,ST7735_BLACK);
 
-    TenMsDelay(1);
-
-    //print temp
-    sprintf(data,"%02.0f%cF%c",outside.temperature,247,outside.temp_change_direction);
-    TenMsDelay(1);
-    ST7735_DrawString2(95,70,data,menu_text_color,ST7735_BLACK);
-
-    //print humidity
-    sprintf(data,"%02.0f%%%c",outside.humidity,outside.humidity_change_direction);
-    TenMsDelay(1);
-    ST7735_DrawString2(95,90,data,menu_text_color,ST7735_BLACK);
-
     //print bp
-    sprintf(data,"%2.1fmmHg%c",inside.pressure,inside.pressure_change_direction);
+    sprintf(data,"%2.1fmmHg%c",BME_Senosr.pressure,BME_Senosr.pressure_change_direction);
     TenMsDelay(1);
     ST7735_DrawString2(40,110,data,menu_text_color,ST7735_BLACK);
 }
 
 
-void update_totals(int update_inside, int update_outside){
+void update_totals(void){
     //increments measurement totals and count for average comparisons
     //Also the direction of change is set
 
-    //inside data
-    if(update_inside){
-        inside.measurement_count++;
-        inside.temp_total+=inside.temperature;
-        inside.pressure_total+=inside.pressure;
-        inside.humidity_total+=inside.humidity;
+    BME_Senosr.measurement_count++;
+    BME_Senosr.temp_total+=BME_Senosr.temperature;
+    BME_Senosr.pressure_total+=BME_Senosr.pressure;
+    BME_Senosr.humidity_total+=BME_Senosr.humidity;
 
-        inside.temp_change_direction=getChangeOrientation(inside.temp_total,
-                                                          inside.measurement_count,
-                                                          inside.temperature);
-        inside.humidity_change_direction=getChangeOrientation(inside.humidity_total,
-                                                              inside.measurement_count,
-                                                              inside.humidity);
-        inside.pressure_change_direction=getChangeOrientation(inside.pressure_total,
-                                                              inside.measurement_count,
-                                                              inside.pressure);
-    }
-    //outside data
-    if(update_outside){
-        outside.measurement_count++;
-        outside.temp_total+=outside.temperature;
-        outside.pressure_total+=outside.pressure;
-        outside.humidity_total+=outside.humidity;
-
-        outside.temp_change_direction=getChangeOrientation(outside.temp_total,
-                                                              outside.measurement_count,
-                                                              outside.temperature);
-        outside.humidity_change_direction=getChangeOrientation(outside.humidity_total,
-                                                              outside.measurement_count,
-                                                              outside.humidity);
-        outside.pressure_change_direction=getChangeOrientation(outside.pressure_total,
-                                                              outside.measurement_count,
-                                                              outside.pressure);
-    }
+    BME_Senosr.temp_change_direction=getChangeOrientation(BME_Senosr.temp_total,
+                                                          BME_Senosr.measurement_count,
+                                                          BME_Senosr.temperature);
+    BME_Senosr.humidity_change_direction=getChangeOrientation(BME_Senosr.humidity_total,
+                                                          BME_Senosr.measurement_count,
+                                                          BME_Senosr.humidity);
+    BME_Senosr.pressure_change_direction=getChangeOrientation(BME_Senosr.pressure_total,
+                                                          BME_Senosr.measurement_count,
+                                                          BME_Senosr.pressure);
 }
 
 
@@ -276,7 +254,7 @@ int getChangeOrientation(float total, int count, float current){
         return no_change_arrow;
     }
 }
-#endif
+
 
 void printTimeandDate(void){
     char temp[5];

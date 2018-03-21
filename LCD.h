@@ -102,18 +102,19 @@ void print_current_status_pic(Light_Status current_status);
 
 #endif
 
-//void create_data_display(void);
+
 void LCD_init(void);
 //void updateForecast(int forecast_code);
-//void updateDataDisplay(void);
 
 void printTimeandDate(void);
 void updateTimeandDate(void);
 
-#if 0 == 1
-void update_totals(int update_inside, int update_outside);
+
+void create_data_display(void);
+void updateDataDisplay(void);
+
+void update_totals(void);
 
 int getChangeOrientation(float total, int count, float current);
-#endif
 
 #endif /* LCD_H_ */
