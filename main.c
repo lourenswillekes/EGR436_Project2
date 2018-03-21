@@ -61,6 +61,8 @@
 #include "Timer32_driver.h"
 #include "UART_driver.h"
 
+#include "LCD.h"
+
 //Determines Wi-Fi Credentials
 #define J 0
 #define L 1
@@ -71,7 +73,7 @@
 
 const char *AT_MODE = "AT+CWMODE=3\r\n";
 
-#ifdef USER==J
+#if USER == J
 const char *AT_WIFI = "AT+CWJAP=\"Samsung Galaxy S7 9448\",\"clke5086\"\r\n";
 #elif USER==L
 const char *AT_WIFI = "AT+CWJAP=\"Verizon-SM-G935V-B089\",\"brgf962^\"\r\n";
@@ -85,6 +87,7 @@ volatile uint8_t response_complete = 0;
 
 volatile int second_count = 0;
 
+int visual_indication = 0;
 
 int main(void)
 {
@@ -114,6 +117,9 @@ int main(void)
     MAP_CS_setDCOCenteredFrequency(CS_DCO_FREQUENCY_12);
     MAP_CS_initClockSignal(CS_MCLK, CS_DCOCLK_SELECT, CS_CLOCK_DIVIDER_1);
     MAP_CS_initClockSignal(CS_SMCLK, CS_DCOCLK_SELECT, CS_CLOCK_DIVIDER_1);
+
+    // initialize LCD
+    LCD_init();
 
     // initialize rtc
     RTC_init();
@@ -214,12 +220,17 @@ int main(void)
     currentTime.minutes = minute;
     currentTime.seconds = second;
     RTC_setFromCalendar(&currentTime);
+    //update LCD
+    updateTimeandDate();
     }
 
 
     while(1)
     {
-
+        if (visual_indication){
+            visual_indication = 0;
+            printTimeandDate();
+        }
         if (59 < second_count)
         {
             second_count = 0;
@@ -229,6 +240,8 @@ int main(void)
                     currentTime.minutes, currentTime.seconds);
 
             UART_transmitString(EUSCI_A0_BASE, time_and_date);
+
+            updateTimeandDate();
         }
 
     }
@@ -247,6 +260,7 @@ void RTC_ISR(void)
     if (status & RTC_C_CLOCK_READ_READY_INTERRUPT)
     {
         second_count++;
+        visual_indication = 1;
     }
 
 }
