@@ -61,11 +61,22 @@
 #include "Timer32_driver.h"
 #include "UART_driver.h"
 
+//Determines Wi-Fi Credentials
+#define J 0
+#define L 1
+#define USER J
+
 
 #define BUFFER_LENGTH 512
 
 const char *AT_MODE = "AT+CWMODE=3\r\n";
+
+#ifdef USER==J
+const char *AT_WIFI = "AT+CWJAP=\"Samsung Galaxy S7 9448\",\"clke5086\"\r\n";
+#elif USER==L
 const char *AT_WIFI = "AT+CWJAP=\"Verizon-SM-G935V-B089\",\"brgf962^\"\r\n";
+#endif
+
 const char *AT_NIST = "AT+CIPSTART=\"TCP\",\"time.nist.gov\",13\r\n";
 
 volatile char buffer[BUFFER_LENGTH];
@@ -116,6 +127,16 @@ int main(void)
 
     // enable interrupts
     MAP_Interrupt_enableMaster();
+
+    /* Wi-Fi Module Pin setup */
+    //WIFI EN
+    MAP_GPIO_setAsOutputPin(GPIO_PORT_P4, GPIO_PIN1);
+
+    //WIFI RST (Pulled Up)
+    MAP_GPIO_setAsInputPinWithPullUpResistor(GPIO_PORT_P4, GPIO_PIN3);
+
+    //Enable Module
+    MAP_GPIO_setOutputHighOnPin(GPIO_PORT_P4, GPIO_PIN1);
 
 
 
