@@ -8,7 +8,7 @@
 #ifndef WEBPAGE_H_
 #define WEBPAGE_H_
 
-void formatMessage(char *msg, float temperature, float humidity, float pressure);
+void formatHTMLPage(char *msg, float temperature, float humidity, float pressure);
 
 
 

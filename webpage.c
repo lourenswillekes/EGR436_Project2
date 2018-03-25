@@ -32,7 +32,7 @@ char *webpage_html_start = "<!DOCTYPE html><html> <body> <center>"
 //seperated from webpage_html_start by data section that needs to be formated
 char *webpage_html_end = "</fieldset> <br> <input type=\"submit\" value=\"Submit\"> </form> </center> </body> </html>";
 
-void formatMessage(char *msg, float temperature, float humidity, float pressure){
+void formatHTMLPage(char *msg, float temperature, float humidity, float pressure){
     char temp[100];
     sprintf(temp,"Temperature: %02f<br>Humidity: %02f%%<br>Pressure: %3.1f mmHg<br></p>",temperature,humidity,pressure);
     msg = strcat(webpage_html_start,temp);
