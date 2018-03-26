@@ -71,15 +71,15 @@
 #define USER J
 
 /*Mode Selection*/
-#define SOFT_AP_MODE            1
-#define STATION_MODE            2
+#define SOFT_AP_MODE            2
+#define STATION_MODE            1
 #define STATION_PLUS_SOFT_MODE  3
 #define ESP_MODE    SOFT_AP_MODE
 
 
 #define BUFFER_LENGTH 512
 
-#if ESP_MODE == SOFT_AP_MODE
+#if ESP_MODE == STATION_MODE
 const char *AT_MODE = "AT+CWMODE=2\r\n";
 #elif ESP_MODE == STATION_PLUS_SOFT_MODE
 const char *AT_MODE = "AT+CWMODE=3\r\n";
@@ -276,7 +276,7 @@ int main(void)
     }
 #elif ESP_MODE == SOFT_AP_MODE   //server mode
     err = 0;
-    if (!err) {
+ /*   if (!err) {
         // set up soft AP
         idx = 0;
         UART_transmitString(EUSCI_A2_BASE, AT_CWSAP_CUR);
@@ -290,7 +290,7 @@ int main(void)
             err = 3;
             UART_transmitString(EUSCI_A0_BASE, "03  NOT ACK'd\r\n");
         }
-    }
+    }*/
     if (!err) {
        //allow multiple connections
        idx = 0;
@@ -341,6 +341,14 @@ int main(void)
             UART_transmitString(EUSCI_A0_BASE, "03  NOT ACK'd\r\n");
         }
     }
+    do{
+        //wait
+    }while(strstr(buffer,"CONNECT") == NULL);
+    UART_transmitString(EUSCI_A2_BASE, "AT+CIPSEND=0,23\r\n");
+    do{
+        //wait
+    }while(strstr(buffer,">") == NULL);
+    UART_transmitString(EUSCI_A2_BASE, "<html><p>test</p></html>");
 
 
 #endif
