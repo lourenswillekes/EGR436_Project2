@@ -70,10 +70,39 @@
 #define L 1
 #define USER J
 
+/*Mode Selection*/
+#define SOFT_AP_MODE            1
+#define STATION_MODE            2
+#define STATION_PLUS_SOFT_MODE  3
+#define ESP_MODE    SOFT_AP_MODE
+
 
 #define BUFFER_LENGTH 512
 
+#if ESP_MODE == SOFT_AP_MODE
+const char *AT_MODE = "AT+CWMODE=2\r\n";
+#elif ESP_MODE == STATION_PLUS_SOFT_MODE
 const char *AT_MODE = "AT+CWMODE=3\r\n";
+#else
+const char *AT_MODE = "AT+CWMODE=1\r\n";
+#endif
+
+
+//setup server
+//channel 1
+//encoding 0
+//max connections 4
+//ssid hidden 0 (broadcast)
+const char *AT_CWSAP_CUR = "AT+CWSAP_CUR=\"JL_Server\",\"passWord\",1,0,4,0\r\n";
+
+//enable multiple connections
+const char *AT_CIPMUX="AT+CIPMUX=1\r\n";
+
+//Create TCP Server
+const char *AT_CIPSERVER="AT+CIPSERVER=1,80\r\n";
+
+//Get Local IP Address
+const char *AT_CIFSR = "AT+CIFSR\r\n";
 
 #if USER == J
 const char *AT_WIFI = "AT+CWJAP=\"Samsung Galaxy S7 9448\",\"clke5086\"\r\n";
@@ -195,7 +224,7 @@ int main(void)
     }
     }
 
-
+#if ESP_MODE == STATION_PLUS_SOFT_MODE
     if (!err) {
     // request time
     idx = 0;
@@ -245,10 +274,81 @@ int main(void)
     Timer32_waitms(100);
     updateTimeandDate();
     }
+#elif ESP_MODE == SOFT_AP_MODE   //server mode
+    err = 0;
+    if (!err) {
+        // set up soft AP
+        idx = 0;
+        UART_transmitString(EUSCI_A2_BASE, AT_CWSAP_CUR);
+        Timer32_waitms(2000);
+        res = strstr(buffer, "OK");
+        if (NULL != res)
+        {
+            UART_transmitString(EUSCI_A0_BASE, "03  ACK'd\r\n");
+        } else
+        {
+            err = 3;
+            UART_transmitString(EUSCI_A0_BASE, "03  NOT ACK'd\r\n");
+        }
+    }
+    if (!err) {
+       //allow multiple connections
+       idx = 0;
+       UART_transmitString(EUSCI_A2_BASE, AT_CIPMUX);
+       Timer32_waitms(2000);
+       res = strstr(buffer, "OK");
+       if (NULL != res)
+       {
+           UART_transmitString(EUSCI_A0_BASE, "03  ACK'd\r\n");
+       } else
+       {
+           err = 3;
+           UART_transmitString(EUSCI_A0_BASE, "03  NOT ACK'd\r\n");
+       }
+   }
+    if (!err) {
+        //create TCP server connection on port 80
+        idx = 0;
+        UART_transmitString(EUSCI_A2_BASE, AT_CIPSERVER);
+        Timer32_waitms(2000);
+        res = strstr(buffer, "OK");
+        if (NULL != res)
+        {
+            UART_transmitString(EUSCI_A0_BASE, "03  ACK'd\r\n");
+        } else
+        {
+            err = 3;
+            UART_transmitString(EUSCI_A0_BASE, "03  NOT ACK'd\r\n");
+        }
+    }
+
+
+
+
+
+    if (!err) {
+        //get IP
+        idx = 0;
+        UART_transmitString(EUSCI_A2_BASE, AT_CIFSR);
+        Timer32_waitms(2000);
+        res = strstr(buffer, "OK");
+        if (NULL != res)
+        {
+            UART_transmitString(EUSCI_A0_BASE, "03  ACK'd\r\n");
+        } else
+        {
+            err = 3;
+            UART_transmitString(EUSCI_A0_BASE, "03  NOT ACK'd\r\n");
+        }
+    }
+
+
+#endif
 
 
     while(1)
     {
+#if ESP_MODE == STATION_MODE || ESP_MODE == STATION_PLUS_SOFT_MODE
         if (visual_indication){
             visual_indication = 0;
             printTimeandDate();
@@ -295,7 +395,11 @@ int main(void)
             //Send new values to the screen
             updateDataDisplay();
         }
-
+#elif ESP_MODE == SOFT_AP_MODE
+        if(1){
+            ;
+        }
+#endif
     }
 }
 
