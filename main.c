@@ -343,7 +343,7 @@ int main(void)
     }
     do{
         //wait
-    }while(strstr(buffer,"CONNECT") == NULL);
+    }while(strstr(buffer,"+IPD,0") == NULL);
     UART_transmitString(EUSCI_A2_BASE, "AT+CIPSEND=0,23\r\n");
     do{
         //wait
