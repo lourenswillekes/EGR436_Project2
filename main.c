@@ -73,7 +73,7 @@
 
 #define BUFFER_LENGTH 512
 
-const char *AT_MODE = "AT+CWMODE=3\r\n";
+const char *AT_MODE = "AT+CWMODE_CUR=3\r\n";
 
 #if USER == J
 const char *AT_WIFI = "AT+CWJAP=\"Samsung Galaxy S7 9448\",\"clke5086\"\r\n";
@@ -198,18 +198,25 @@ int main(void)
 
     if (!err) {
     // request time
-    idx = 0;
-    UART_transmitString(EUSCI_A2_BASE, AT_NIST);
-    Timer32_waitms(2000);
-    res = strstr(buffer, "OK");
-    if (NULL != res)
-    {
-        UART_transmitString(EUSCI_A0_BASE, "03  ACK'd\r\n");
-    } else
-    {
-        err = 3;
-        UART_transmitString(EUSCI_A0_BASE, "03  NOT ACK'd\r\n");
-    }
+        int invalid = 1;
+        while(invalid){
+            idx = 0;
+            UART_transmitString(EUSCI_A2_BASE, AT_NIST);
+            Timer32_waitms(2000);
+            res = strstr(buffer, "OK");
+            if (NULL != res)
+            {
+                UART_transmitString(EUSCI_A0_BASE, "03  ACK'd\r\n");
+
+                invalid = 0;
+            } else
+            {
+                err = 3;
+                UART_transmitString(EUSCI_A0_BASE, "03  NOT ACK'd\r\n");
+
+                Timer32_waitms(5000);
+            }
+        }
     }
 
 
@@ -260,10 +267,32 @@ int main(void)
             sprintf(time_and_date, "%d/%d/%d %d:%d:%d\r\n", currentTime.year,
                     currentTime.month, currentTime.dayOfmonth, currentTime.hours,
                     currentTime.minutes, currentTime.seconds);
-
-            UART_transmitString(EUSCI_A0_BASE, time_and_date);
+            UART_transmitString(EUSCI_A0_BASE,time_and_date);
 
             updateTimeandDate();
+        }
+
+        if((second_count % 30) == 0){
+            // connect to Google pushingbox API
+            //char *pushingBoxConnect = "AT+CIPSTART=\"TCP\",\"api.pushingbox.com\",80\r\n";
+            char ESP8266String[300];
+            char PostSensorData[2000];
+            strcpy(ESP8266String,"AT+CIPSTART=\"TCP\",\"api.pushingbox.com\",80\r\n");
+            UART_transmitString(EUSCI_A2_BASE, ESP8266String);
+            Timer32_waitms(3000);
+            sprintf(PostSensorData,"GET "
+                    "/pushingbox?devid=v12285A95612A4A0&humidityData=%f&celData=%f&fehrData=%f&hicData=%f&hifData=%d"
+                    " HTTP/1.1\r\nHost: api.pushingbox.com\r\nUser-Agent: ESP8266/1.0\r\nConnection: "
+                    "close\r\n\r\n",BME_Senosr.humidity,BME_Senosr.temperature,((BME_Senosr.temperature - 32) / 1.8 ),BME_Senosr.pressure,1);
+            UART_transmitString(EUSCI_A0_BASE,PostSensorData);
+            int formLength=strlen(PostSensorData);
+            // send api request for encrypting sensor data
+            sprintf(ESP8266String, "AT+CIPSEND=%d\r\n",formLength);
+            UART_transmitString(EUSCI_A2_BASE,ESP8266String);
+            Timer32_waitms(500);
+            UART_transmitString(EUSCI_A2_BASE,PostSensorData);
+            Timer32_waitms(500);
+
         }
 
         if((second_count % 20) == 0){
