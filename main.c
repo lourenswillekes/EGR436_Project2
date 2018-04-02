@@ -77,6 +77,8 @@ const char *AT_MODE = "AT+CWMODE=3\r\n";
 
 #if USER == J
 const char *AT_WIFI = "AT+CWJAP=\"Samsung Galaxy S7 9448\",\"clke5086\"\r\n";
+const char *spreedsheetURLKey = "1XeWi9MEX0g7X5FzJW_cCc6VTvcFcGCSW5d9U7mCwqIU";
+const char *sheetsURL = "https://script.google.com/macros/s/AKfycbzmxER3hopGk8YSsjrtdoMUxQILwgdkZb3WM4WESYLNKSLqcY94/exec";
 #elif USER==L
 const char *AT_WIFI = "AT+CWJAP=\"Verizon-SM-G935V-B089\",\"brgf962^\"\r\n";
 #endif
