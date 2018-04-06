@@ -100,11 +100,16 @@ int read_sensor = 0;
 struct bme280_dev dev;
 struct bme280_data compensated_data;
 
+int ESP8266CmdOut(char *cmdOut, char *response, int postCmdWait){
+
+    }
+
 int main(void)
 {
     int j;
     char *res = NULL;
     int err = 0;
+    int invalid = 1;
 
     int julian, year, month, day, hour, minute, second;
     RTC_C_Calendar currentTime =
@@ -164,7 +169,6 @@ int main(void)
     MAP_GPIO_setOutputHighOnPin(GPIO_PORT_P4, GPIO_PIN1);
 
 
-
     // set mode
     UART_transmitString(EUSCI_A2_BASE, AT_MODE);
     Timer32_waitms(2000);
@@ -180,25 +184,32 @@ int main(void)
 
 
     if (!err) {
-    // connect wifi
-    idx = 0;
-    UART_transmitString(EUSCI_A2_BASE, AT_WIFI);
-    Timer32_waitms(6000);
-    res = strstr(buffer, "OK");
-    if (NULL != res)
-    {
-        UART_transmitString(EUSCI_A0_BASE, "02  ACK'd\r\n");
-    } else
-    {
-        err = 2;
-        UART_transmitString(EUSCI_A0_BASE, "02  NOT ACK'd\r\n");
-    }
+        // connect wifi
+        invalid = 1;
+        while(invalid){
+            idx = 0;
+            UART_transmitString(EUSCI_A2_BASE, AT_WIFI);
+            Timer32_waitms(6000);
+            res = strstr(buffer, "OK");
+            if (NULL != res)
+            {
+                UART_transmitString(EUSCI_A0_BASE, "02  ACK'd\r\n");
+
+                invalid = 0;
+            } else
+            {
+                err = 2;
+                UART_transmitString(EUSCI_A0_BASE, "02  NOT ACK'd\r\n");
+
+                Timer32_waitms(200); //give the user time to setup wifi
+            }
+        }
     }
 
 
     if (!err) {
     // request time
-        int invalid = 1;
+        invalid = 1;
         while(invalid){
             idx = 0;
             UART_transmitString(EUSCI_A2_BASE, AT_NIST);
@@ -281,7 +292,7 @@ int main(void)
             UART_transmitString(EUSCI_A2_BASE, ESP8266String);
             Timer32_waitms(3000);
             sprintf(PostSensorData,"GET "
-                    "/pushingbox?devid=v12285A95612A4A0&humidityData=%f&celData=%f&fehrData=%f&hicData=%f&hifData=%d"
+                    "/pushingbox?devid=v12285A95612A4A0&humidityData=%2.0f&celData=%2.2f&fehrData=%2.2f&hicData=%3.2f&hifData=%2d"
                     " HTTP/1.1\r\nHost: api.pushingbox.com\r\nUser-Agent: ESP8266/1.0\r\nConnection: "
                     "close\r\n\r\n",BME_Senosr.humidity,BME_Senosr.temperature,((BME_Senosr.temperature - 32) / 1.8 ),BME_Senosr.pressure,1);
             UART_transmitString(EUSCI_A0_BASE,PostSensorData);
