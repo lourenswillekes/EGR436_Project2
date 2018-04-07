@@ -118,7 +118,7 @@ int ESP8266CmdOut(int cmdID, const char *cmdOut, char *response, int postCmdWait
     Timer32_waitms(100);
 */
     while(!successful && attempt_count < 5){
-
+        idx = 0;
         UART_transmitString(EUSCI_A2_BASE, cmdOut);
         Timer32_waitms(postCmdWait);
         res = strstr(buffer, response);
@@ -217,8 +217,8 @@ int main(void)
 
 
     // set mode
-    //int success = ESP8266CmdOut(1, AT_MODE, "OK", 2000, 100, TRUE);
-    UART_transmitString(EUSCI_A2_BASE, AT_MODE);
+    int success = ESP8266CmdOut(1, AT_MODE, "OK", 2000, 100, TRUE);
+    /*UART_transmitString(EUSCI_A2_BASE, AT_MODE);
     Timer32_waitms(2000);
     res = strstr(buffer, "OK");
     if (NULL != res)
@@ -229,9 +229,9 @@ int main(void)
         err = 1;
         UART_transmitString(EUSCI_A0_BASE, "01  NOT ACK'd\r\n");
     }
-
-   //success = ESP8266CmdOut(2, AT_WIFI, "OK", 6000, 200, TRUE);
-   if (!err) {
+*/
+   success = ESP8266CmdOut(2, AT_WIFI, "OK", 6000, 200, TRUE);
+   /*if (!err) {
         // connect wifi
         invalid = 1;
         while(invalid){
@@ -252,10 +252,10 @@ int main(void)
                 Timer32_waitms(1500); //give the user time to setup wifi
             }
         }
-    }
+    }*/
 
-    //success = ESP8266CmdOut(3, AT_NIST, "OK", 2000, 5000, TRUE);
-    if (!err) {
+    success = ESP8266CmdOut(3, AT_NIST, "OK", 2000, 5000, TRUE);
+    /*if (!err) {
     // request time
         invalid = 1;
         while(invalid){
@@ -276,9 +276,9 @@ int main(void)
                 Timer32_waitms(5000);
             }
         }
-    }
+    }*/
 
-    /*if(success){
+    if(success){
         res = strstr(buffer, "IPD,51:");
         res += 8; // move to start of time and date
         sscanf(res, "%d %d-%d-%d %d:%d:%d", &julian, &year, &month, &day, &hour, &minute, &second);
@@ -306,9 +306,9 @@ int main(void)
     Timer32_waitms(100);
     create_data_display();
     Timer32_waitms(100);
-    updateTimeandDate();*/
+    updateTimeandDate();
 
-    if (!err) {
+    /*if (!err) {
     // get time and date
     res = strstr(buffer, "IPD,51:");
     if (NULL != res)
@@ -339,7 +339,7 @@ int main(void)
         create_data_display();
         Timer32_waitms(100);
         updateTimeandDate();
-    }
+    }*/
 
 
     while(1)
@@ -352,10 +352,13 @@ int main(void)
         {
             second_count = 0;
             currentTime = RTC_read();
+            /*
             sprintf(time_and_date, "%d/%d/%d %d:%d:%d\r\n", currentTime.year,
                     currentTime.month, currentTime.dayOfmonth, currentTime.hours,
                     currentTime.minutes, currentTime.seconds);
+
             UART_transmitString(EUSCI_A0_BASE,time_and_date);
+            */
 
             updateTimeandDate();
         }
