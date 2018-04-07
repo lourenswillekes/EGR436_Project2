@@ -366,7 +366,7 @@ int main(void)
             UART_transmitString(EUSCI_A2_BASE, ESP8266String);
             Timer32_waitms(3000);
             sprintf(PostSensorData,"GET "
-                    "/pushingbox?devid=v12285A95612A4A0&humidityData=%2.0f&celData=%2.2f&fehrData=%2.2f&hicData=%3.2f&hifData=%2d"
+                    "/pushingbox?devid=v12285A95612A4A0&humidityData=%f&celData=%f&fehrData=%f&hicData=%f&hifData=%d"
                     " HTTP/1.1\r\nHost: api.pushingbox.com\r\nUser-Agent: ESP8266/1.0\r\nConnection: "
                     "close\r\n\r\n",BME_Senosr.humidity,BME_Senosr.temperature,((BME_Senosr.temperature - 32) / 1.8 ),BME_Senosr.pressure,1);
             UART_transmitString(EUSCI_A0_BASE,PostSensorData);
