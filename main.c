@@ -70,9 +70,9 @@
 #define L 1
 #define USER J
 
-#define ENABLE  1
-#define DISABLE 0
-#define BATTERY_ENABLED ENABLE
+#define ENABLED  1
+#define DISABLED 0
+#define BATTERY_ENABLED DISABLED
 
 #define BUFFER_LENGTH 512
 
@@ -374,7 +374,7 @@ int main(void)
                     "&celData=%f&fehrData=%f&Humidity=%f"
                     "&Pressure=%f&Vout=%f&Iin=%f&Ibat=%f&Iout=%f"
                     " HTTP/1.1\r\nHost: api.pushingbox.com\r\nUser-Agent: ESP8266/1.0\r\nConnection: "
-                    "close\r\n\r\n",1,0,BME_Senosr.temperature,((BME_Senosr.temperature - 32) / 1.8 ),BME_Senosr.humidity,BME_Senosr.pressure,3.3,20.5,21.2,23.3);
+                    "close\r\n\r\n",USER,BATTERY_ENABLED,BME_Senosr.temperature,((BME_Senosr.temperature - 32) / 1.8 ),BME_Senosr.humidity,BME_Senosr.pressure,3.3,20.5,21.2,23.3);
             UART_transmitString(EUSCI_A0_BASE,PostSensorData);
             int formLength=strlen(PostSensorData);
             // send api request for encrypting sensor data
