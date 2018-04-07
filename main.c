@@ -100,9 +100,53 @@ int read_sensor = 0;
 struct bme280_dev dev;
 struct bme280_data compensated_data;
 
-int ESP8266CmdOut(char *cmdOut, char *response, int postCmdWait){
+int ESP8266CmdOut(int cmdID, const char *cmdOut, char *response, int postCmdWait, int errorResponseWait, bool retry){
+    bool successful = 0;
+    char *res = NULL;
+    char out[20];
 
+    //Max retry 5 times
+    int attempt_count = 0;
+/*
+    //Enable Module
+    MAP_GPIO_setOutputHighOnPin(GPIO_PORT_P4, GPIO_PIN1);
+
+    //Wait time for startup
+    Timer32_waitms(100);
+*/
+    while(!successful && attempt_count < 5){
+
+        UART_transmitString(EUSCI_A2_BASE, cmdOut);
+        Timer32_waitms(postCmdWait);
+        res = strstr(buffer, response);
+        if (NULL != res)
+        {
+            sprintf(out,"%i--Successful\r\n",cmdID);
+            UART_transmitString(EUSCI_A0_BASE, out);
+
+            successful = TRUE;
+        } else
+        {
+            sprintf(out,"%i--Failed\r\n",cmdID);
+            UART_transmitString(EUSCI_A0_BASE, out);
+
+            if(!retry){
+                break;
+            }else{
+                Timer32_waitms(errorResponseWait); //give the user time to setup wifi
+            }
+        }
+        attempt_count++;
     }
+/*
+    //Disable Module
+    MAP_GPIO_setOutputLowOnPin(GPIO_PORT_P4, GPIO_PIN1);
+    Timer32_waitms(10);
+*/
+
+
+    return successful;
+}
 
 int main(void)
 {
@@ -170,7 +214,8 @@ int main(void)
 
 
     // set mode
-    UART_transmitString(EUSCI_A2_BASE, AT_MODE);
+    int success = ESP8266CmdOut(1, AT_MODE, "OK", 2000, 100, TRUE);
+    /*UART_transmitString(EUSCI_A2_BASE, AT_MODE);
     Timer32_waitms(2000);
     res = strstr(buffer, "OK");
     if (NULL != res)
@@ -181,9 +226,9 @@ int main(void)
         err = 1;
         UART_transmitString(EUSCI_A0_BASE, "01  NOT ACK'd\r\n");
     }
-
-
-    if (!err) {
+*/
+   //success = ESP8266CmdOut(2, AT_WIFI, "OK", 6000, 200, TRUE);
+   if (!err) {
         // connect wifi
         invalid = 1;
         while(invalid){
@@ -201,12 +246,12 @@ int main(void)
                 err = 2;
                 UART_transmitString(EUSCI_A0_BASE, "02  NOT ACK'd\r\n");
 
-                Timer32_waitms(200); //give the user time to setup wifi
+                Timer32_waitms(1500); //give the user time to setup wifi
             }
         }
     }
 
-
+    //success = ESP8266CmdOut(3, AT_NIST, "OK", 2000, 5000, TRUE);
     if (!err) {
     // request time
         invalid = 1;
@@ -230,6 +275,35 @@ int main(void)
         }
     }
 
+    /*if(success){
+        res = strstr(buffer, "IPD,51:");
+        res += 8; // move to start of time and date
+        sscanf(res, "%d %d-%d-%d %d:%d:%d", &julian, &year, &month, &day, &hour, &minute, &second);
+        hour = (hour + 20) % 24;
+    }else{
+        //set default time
+        year = 7777;
+        month = 7;
+        day = 1;
+        hour = 7;
+        minute = 7;
+        second = 0;
+    }
+
+    // set time and date
+    currentTime.year = year;
+    currentTime.month = month;
+    currentTime.dayOfmonth = day;
+    currentTime.hours = hour;
+    currentTime.minutes = minute;
+    currentTime.seconds = second;
+    RTC_setFromCalendar(&currentTime);
+
+    //update LCD
+    Timer32_waitms(100);
+    create_data_display();
+    Timer32_waitms(100);
+    updateTimeandDate();*/
 
     if (!err) {
     // get time and date
@@ -249,19 +323,19 @@ int main(void)
 
 
     if (!err) {
-    // set time and date
-    currentTime.year = year;
-    currentTime.month = month;
-    currentTime.dayOfmonth = day;
-    currentTime.hours = hour;
-    currentTime.minutes = minute;
-    currentTime.seconds = second;
-    RTC_setFromCalendar(&currentTime);
-    //update LCD
-    Timer32_waitms(100);
-    create_data_display();
-    Timer32_waitms(100);
-    updateTimeandDate();
+        // set time and date
+        currentTime.year = year;
+        currentTime.month = month;
+        currentTime.dayOfmonth = day;
+        currentTime.hours = hour;
+        currentTime.minutes = minute;
+        currentTime.seconds = second;
+        RTC_setFromCalendar(&currentTime);
+        //update LCD
+        Timer32_waitms(100);
+        create_data_display();
+        Timer32_waitms(100);
+        updateTimeandDate();
     }
 
 
