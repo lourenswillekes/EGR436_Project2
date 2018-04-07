@@ -70,6 +70,9 @@
 #define L 1
 #define USER J
 
+#define ENABLE  1
+#define DISABLE 0
+#define BATTERY_ENABLED ENABLE
 
 #define BUFFER_LENGTH 512
 
@@ -214,8 +217,8 @@ int main(void)
 
 
     // set mode
-    int success = ESP8266CmdOut(1, AT_MODE, "OK", 2000, 100, TRUE);
-    /*UART_transmitString(EUSCI_A2_BASE, AT_MODE);
+    //int success = ESP8266CmdOut(1, AT_MODE, "OK", 2000, 100, TRUE);
+    UART_transmitString(EUSCI_A2_BASE, AT_MODE);
     Timer32_waitms(2000);
     res = strstr(buffer, "OK");
     if (NULL != res)
@@ -226,7 +229,7 @@ int main(void)
         err = 1;
         UART_transmitString(EUSCI_A0_BASE, "01  NOT ACK'd\r\n");
     }
-*/
+
    //success = ESP8266CmdOut(2, AT_WIFI, "OK", 6000, 200, TRUE);
    if (!err) {
         // connect wifi
@@ -365,10 +368,13 @@ int main(void)
             strcpy(ESP8266String,"AT+CIPSTART=\"TCP\",\"api.pushingbox.com\",80\r\n");
             UART_transmitString(EUSCI_A2_BASE, ESP8266String);
             Timer32_waitms(3000);
+            //"/pushingbox?devid=v12285A95612A4A0&humidityData=%f&celData=%f&fehrData=%f&hicData=%f&hifData=%d"
             sprintf(PostSensorData,"GET "
-                    "/pushingbox?devid=v12285A95612A4A0&humidityData=%f&celData=%f&fehrData=%f&hicData=%f&hifData=%d"
+                    "/pushingbox?devid=v12285A95612A4A0&ID=%d&BatteryEnabled=%d"
+                    "&celData=%f&fehrData=%f&Humidity=%f"
+                    "&Pressure=%f&Vout=%f&Iin=%f&Ibat=%f&Iout=%f"
                     " HTTP/1.1\r\nHost: api.pushingbox.com\r\nUser-Agent: ESP8266/1.0\r\nConnection: "
-                    "close\r\n\r\n",BME_Senosr.humidity,BME_Senosr.temperature,((BME_Senosr.temperature - 32) / 1.8 ),BME_Senosr.pressure,1);
+                    "close\r\n\r\n",1,0,BME_Senosr.temperature,((BME_Senosr.temperature - 32) / 1.8 ),BME_Senosr.humidity,BME_Senosr.pressure,3.3,20.5,21.2,23.3);
             UART_transmitString(EUSCI_A0_BASE,PostSensorData);
             int formLength=strlen(PostSensorData);
             // send api request for encrypting sensor data
