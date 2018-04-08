@@ -260,17 +260,27 @@ void printTimeandDate(void){
     char temp[5];
 
     //Visual indication to the user that time has past
-    if((second_count % 2) == 0 )
+    /*if((second_count % 2) == 0 )
         sprintf(temp,"%02d:%02d",time.hours,time.minutes);
     else
         sprintf(temp,"%02d %02d",time.hours,time.minutes);
+    */
+
+    sprintf(temp,"%02d %02d",time.hours,time.minutes);
 
     ST7735_DrawString2(0,5,temp,menu_text_color,ST7735_BLACK);
     sprintf(temp,"%02d/%02d",time.month,time.dayOfmonth);
     ST7735_DrawString2(100,5,temp,menu_text_color,ST7735_BLACK);
 }
 
-
+void updateIndicator(int on){
+    if(on){
+        ST7735_DrawString2(20,5,":",menu_text_color,ST7735_BLACK);
+    }
+    else{
+        ST7735_DrawString2(20,5," ",menu_text_color,ST7735_BLACK);
+    }
+}
 
 void updateTimeandDate(void){
     time = RTC_read();

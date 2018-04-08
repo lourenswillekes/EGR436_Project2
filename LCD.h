@@ -117,4 +117,6 @@ void update_totals(void);
 
 int getChangeOrientation(float total, int count, float current);
 
+void updateIndicator(int on);
+
 #endif /* LCD_H_ */

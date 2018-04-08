@@ -344,10 +344,10 @@ int main(void)
 
     while(1)
     {
-        if (visual_indication){
+        /*if (visual_indication){
             visual_indication = 0;
             printTimeandDate();
-        }
+        }*/
         if (59 < second_count)
         {
             second_count = 0;
@@ -377,7 +377,7 @@ int main(void)
                     "&celData=%f&fehrData=%f&Humidity=%f"
                     "&Pressure=%f&Vout=%f&Iin=%f&Ibat=%f&Iout=%f"
                     " HTTP/1.1\r\nHost: api.pushingbox.com\r\nUser-Agent: ESP8266/1.0\r\nConnection: "
-                    "close\r\n\r\n",USER,BATTERY_ENABLED,BME_Senosr.temperature,((BME_Senosr.temperature - 32) / 1.8 ),BME_Senosr.humidity,BME_Senosr.pressure,3.3,20.5,21.2,23.3);
+                    "close\r\n\r\n",USER,BATTERY_ENABLED,((BME_Senosr.temperature - 32) / 1.8 ),BME_Senosr.temperature, BME_Senosr.humidity,BME_Senosr.pressure,3.3,20.5,21.2,23.3);
             UART_transmitString(EUSCI_A0_BASE,PostSensorData);
             int formLength=strlen(PostSensorData);
             // send api request for encrypting sensor data
@@ -418,7 +418,6 @@ int main(void)
             //Send new values to the screen
             updateDataDisplay();
         }
-
     }
 }
 
@@ -436,6 +435,7 @@ void RTC_ISR(void)
     {
         second_count++;
         visual_indication = 1;
+        updateIndicator((second_count % 2));
     }
 
 }
