@@ -57,6 +57,7 @@
 #include <stdint.h>
 #include <stdbool.h>
 
+#include "ADC_driver.h"
 #include "RTC_driver.h"
 #include "Timer32_driver.h"
 #include "UART_driver.h"
@@ -121,6 +122,15 @@ int ESP8266CmdOut(int cmdID, const char *cmdOut, char *response, int postCmdWait
 void send_Warning_Messages(float value);
 void upload_to_googlesheets(void);
 
+
+
+
+
+volatile double voltage;
+volatile double current;
+
+
+
 int main(void)
 {
     int j;
@@ -149,10 +159,13 @@ int main(void)
     MAP_WDT_A_holdTimer();
 
     // clk = 12 MHz
+    // TODO: change this to CLK_driver.c, also run off external crystal
     MAP_CS_setDCOCenteredFrequency(CS_DCO_FREQUENCY_12);
     MAP_CS_initClockSignal(CS_MCLK, CS_DCOCLK_SELECT, CS_CLOCK_DIVIDER_1);
     MAP_CS_initClockSignal(CS_SMCLK, CS_DCOCLK_SELECT, CS_CLOCK_DIVIDER_1);
 
+    // initialize ADC
+    ADC_init();
 
 #if DISPLAY_METHOD == LCD || DISPLAY_METHOD == LCD_AND_GOOGLE_SHEETS
     // initialize LCD
@@ -171,7 +184,7 @@ int main(void)
      * I2C and timer32 modules are initialized for
      * use in the method.
      */
-    BME280_Init(&dev);
+    //BME280_Init(&dev);
 
     // initialize uart
     UARTA0_init();
@@ -179,6 +192,24 @@ int main(void)
 
     // enable interrupts
     MAP_Interrupt_enableMaster();
+
+
+
+
+    uint16_t mem0, mem1;
+    while(1)
+    {
+
+        ADC_read(&mem0, &mem1);
+        voltage = ((mem0 / 16384.0) * 3.3);
+        current = (((mem1 - 8192) / 8192.0) * 3.3);
+        Timer32_waitms(500);
+
+    }
+
+
+
+
 
     /* Wi-Fi Module Pin setup */
     //WIFI EN
