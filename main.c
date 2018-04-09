@@ -60,23 +60,26 @@
 #include "RTC_driver.h"
 #include "Timer32_driver.h"
 #include "UART_driver.h"
-
 #include "LCD.h"
-
 #include "environment_sensor.h"     //BME280 library
+
+
+#define BUFFER_LENGTH 512
+#define ENABLED  1
+#define DISABLED 0
+#define BATTERY_ENABLED DISABLED
+
+//Designate Display Method
+#define LCD                     0
+#define GOOGLE_SHEETS           1
+#define LCD_AND_GOOGLE_SHEETS   2
+
+#define DISPLAY_METHOD          LCD_AND_GOOGLE_SHEETS
 
 //Determines Wi-Fi Credentials
 #define J 0
 #define L 1
 #define USER J
-
-#define ENABLED  1
-#define DISABLED 0
-#define BATTERY_ENABLED DISABLED
-
-#define BUFFER_LENGTH 512
-
-const char *AT_MODE = "AT+CWMODE_CUR=3\r\n";
 
 #if USER == J
 const char *AT_WIFI = "AT+CWJAP=\"Samsung Galaxy S7 9448\",\"clke5086\"\r\n";
@@ -85,6 +88,7 @@ const char *AT_WIFI = "AT+CWJAP=\"Verizon-SM-G935V-B089\",\"brgf962^\"\r\n";
 #endif
 
 const char *AT_NIST = "AT+CIPSTART=\"TCP\",\"time.nist.gov\",13\r\n";
+const char *AT_MODE = "AT+CWMODE_CUR=3\r\n";
 
 volatile char buffer[BUFFER_LENGTH];
 volatile uint8_t idx = 0;
@@ -103,58 +107,14 @@ int read_sensor = 0;
 struct bme280_dev dev;
 struct bme280_data compensated_data;
 
-int ESP8266CmdOut(int cmdID, const char *cmdOut, char *response, int postCmdWait, int errorResponseWait, bool retry){
-    bool successful = 0;
-    char *res = NULL;
-    char out[20];
-
-    //Max retry 5 times
-    int attempt_count = 0;
-/*
-    //Enable Module
-    MAP_GPIO_setOutputHighOnPin(GPIO_PORT_P4, GPIO_PIN1);
-
-    //Wait time for startup
-    Timer32_waitms(100);
-*/
-    while(!successful && attempt_count < 5){
-        idx = 0;
-        UART_transmitString(EUSCI_A2_BASE, cmdOut);
-        Timer32_waitms(postCmdWait);
-        res = strstr(buffer, response);
-        if (NULL != res)
-        {
-            sprintf(out,"%i--Successful\r\n",cmdID);
-            UART_transmitString(EUSCI_A0_BASE, out);
-
-            successful = TRUE;
-        } else
-        {
-            sprintf(out,"%i--Failed\r\n",cmdID);
-            UART_transmitString(EUSCI_A0_BASE, out);
-
-            if(!retry){
-                break;
-            }else{
-                Timer32_waitms(errorResponseWait); //give the user time to setup wifi
-            }
-        }
-        attempt_count++;
-    }
-/*
-    //Disable Module
-    MAP_GPIO_setOutputLowOnPin(GPIO_PORT_P4, GPIO_PIN1);
-    Timer32_waitms(10);
-*/
-
-
-    return successful;
-}
+uint8_t getBMEData(void);
+int ESP8266CmdOut(int cmdID, const char *cmdOut, char *response, int postCmdWait, int errorResponseWait, bool retry);
 
 int main(void)
 {
     int j;
     char *res = NULL;
+    uint8_t result;
     int err = 0;
     int invalid = 1;
 
@@ -181,8 +141,11 @@ int main(void)
     MAP_CS_initClockSignal(CS_MCLK, CS_DCOCLK_SELECT, CS_CLOCK_DIVIDER_1);
     MAP_CS_initClockSignal(CS_SMCLK, CS_DCOCLK_SELECT, CS_CLOCK_DIVIDER_1);
 
+
+#if DISPLAY_METHOD == LCD || DISPLAY_METHOD == LCD_AND_GOOGLE_SHEETS
     // initialize LCD
     LCD_init();
+#endif
 
     // initialize rtc
     RTC_init();
@@ -214,7 +177,6 @@ int main(void)
 
     //Enable Module
     MAP_GPIO_setOutputHighOnPin(GPIO_PORT_P4, GPIO_PIN1);
-
 
     // set mode
     int success = ESP8266CmdOut(1, AT_MODE, "OK", 2000, 100, TRUE);
@@ -254,7 +216,7 @@ int main(void)
         }
     }*/
 
-    success = ESP8266CmdOut(3, AT_NIST, "OK", 2000, 5000, TRUE);
+    success = ESP8266CmdOut(3, AT_NIST, "IPD", 2000, 5000, TRUE);
     /*if (!err) {
     // request time
         invalid = 1;
@@ -302,11 +264,17 @@ int main(void)
     currentTime.seconds = second;
     RTC_setFromCalendar(&currentTime);
 
+#if DISPLAY_METHOD == LCD || DISPLAY_METHOD == LCD_AND_GOOGLE_SHEETS
     //update LCD
     Timer32_waitms(100);
     create_data_display();
     Timer32_waitms(100);
     updateTimeandDate();
+
+    Timer32_waitms(20);
+    result = getBMEData();
+    updateDataDisplay();
+#endif
 
     /*if (!err) {
     // get time and date
@@ -342,12 +310,15 @@ int main(void)
     }*/
 
 
+
     while(1)
     {
         /*if (visual_indication){
             visual_indication = 0;
             printTimeandDate();
         }*/
+#if DISPLAY_METHOD == LCD || DISPLAY_METHOD == LCD_AND_GOOGLE_SHEETS
+        //Update LCD Displayed Time
         if (59 < second_count)
         {
             second_count = 0;
@@ -362,8 +333,12 @@ int main(void)
 
             updateTimeandDate();
         }
+#endif
 
+#if DISPLAY_METHOD == GOOGLE_SHEETS || DISPLAY_METHOD == LCD_AND_GOOGLE_SHEETS
+        //Push new data to google sheets
         if((second_count % 30) == 0){
+
             // connect to Google pushingbox API
             //char *pushingBoxConnect = "AT+CIPSTART=\"TCP\",\"api.pushingbox.com\",80\r\n";
             char ESP8266String[300];
@@ -378,19 +353,18 @@ int main(void)
                     "&Pressure=%f&Vout=%f&Iin=%f&Ibat=%f&Iout=%f"
                     " HTTP/1.1\r\nHost: api.pushingbox.com\r\nUser-Agent: ESP8266/1.0\r\nConnection: "
                     "close\r\n\r\n",USER,BATTERY_ENABLED,((BME_Senosr.temperature - 32) / 1.8 ),BME_Senosr.temperature, BME_Senosr.humidity,BME_Senosr.pressure,3.3,20.5,21.2,23.3);
-            UART_transmitString(EUSCI_A0_BASE,PostSensorData);
+            //UART_transmitString(EUSCI_A0_BASE,PostSensorData);
             int formLength=strlen(PostSensorData);
             // send api request for encrypting sensor data
             sprintf(ESP8266String, "AT+CIPSEND=%d\r\n",formLength);
             UART_transmitString(EUSCI_A2_BASE,ESP8266String);
-            Timer32_waitms(500);
+            Timer32_waitms(100);
             UART_transmitString(EUSCI_A2_BASE,PostSensorData);
-            Timer32_waitms(500);
-
+            Timer32_waitms(100);
         }
-
+#endif
         if((second_count % 20) == 0){
-            //Retrieve sensor values from BME280
+            /*//Retrieve sensor values from BME280
             res = BME280_Read(&dev, &compensated_data);
 
             //Format pressure measurement
@@ -411,17 +385,78 @@ int main(void)
 
             //Convert from degrees C to F and save
             BME_Senosr.temperature = (((compensated_data.temperature / 100.0) * (9.0/5.0)) + 32.0);
-
+            */
+            result = getBMEData();
+#if DISPLAY_METHOD == LCD || DISPLAY_METHOD == LCD_AND_GOOGLE_SHEETS
             //This new data is compared with past trends.
             update_totals();
 
             //Send new values to the screen
             updateDataDisplay();
+#endif
         }
     }
 }
+int ESP8266CmdOut(int cmdID, const char *cmdOut, char *response, int postCmdWait, int errorResponseWait, bool retry){
+    bool successful = 0;
+    char *res = NULL;
+    char out[20];
 
+    //Max retry 5 times
+    int attempt_count = 0;
 
+    while(!successful && attempt_count < 5){
+        idx = 0;
+        UART_transmitString(EUSCI_A2_BASE, cmdOut);
+        Timer32_waitms(postCmdWait);
+        res = strstr(buffer, response);
+        if (NULL != res)
+        {
+            sprintf(out,"%i--Successful\r\n",cmdID);
+            UART_transmitString(EUSCI_A0_BASE, out);
+
+            successful = TRUE;
+        } else
+        {
+            sprintf(out,"%i--Failed\r\n",cmdID);
+            UART_transmitString(EUSCI_A0_BASE, out);
+
+            if(!retry){
+                break;
+            }else{
+                Timer32_waitms(errorResponseWait); //give the user time to setup wifi
+            }
+        }
+        attempt_count++;
+    }
+    return successful;
+}
+
+uint8_t getBMEData(void){
+    //Retrieve sensor values from BME280
+    uint8_t res = BME280_Read(&dev, &compensated_data);
+
+    //Format pressure measurement
+    float temp_pressure = ( (float) compensated_data.pressure )/ 100.0;
+
+    //convert from kPa to mmHg
+    temp_pressure *= ( 0.760 / 101325.0);
+
+    //scale by 1000 for mmHg. Conversion leaves the value in decimal notation
+    //Save current formated measurement
+    BME_Senosr.pressure = temp_pressure * 1000;
+
+    //Correct for altitude
+    BME_Senosr.pressure += 17;
+
+    //Save formated humidity measurement
+    BME_Senosr.humidity = compensated_data.humidity/1000.0; //Convert value to percentage
+
+    //Convert from degrees C to F and save
+    BME_Senosr.temperature = (((compensated_data.temperature / 100.0) * (9.0/5.0)) + 32.0);
+
+    return res;
+}
 void RTC_ISR(void)
 {
     uint32_t status;
@@ -434,8 +469,10 @@ void RTC_ISR(void)
     if (status & RTC_C_CLOCK_READ_READY_INTERRUPT)
     {
         second_count++;
+#if DISPLAY_METHOD == LCD || DISPLAY_METHOD == LCD_AND_GOOGLE_SHEETS
         visual_indication = 1;
         updateIndicator((second_count % 2));
+#endif
     }
 
 }

@@ -257,7 +257,7 @@ int getChangeOrientation(float total, int count, float current){
 
 
 void printTimeandDate(void){
-    char temp[5];
+    char temp[10];
 
     //Visual indication to the user that time has past
     /*if((second_count % 2) == 0 )
@@ -269,8 +269,9 @@ void printTimeandDate(void){
     sprintf(temp,"%02d %02d",time.hours,time.minutes);
 
     ST7735_DrawString2(0,5,temp,menu_text_color,ST7735_BLACK);
-    sprintf(temp,"%02d/%02d",time.month,time.dayOfmonth);
-    ST7735_DrawString2(100,5,temp,menu_text_color,ST7735_BLACK);
+    int i = time.year % 2000;
+    sprintf(temp,"%02d/%02d/%d",time.month,time.dayOfmonth,i);
+    ST7735_DrawString2(70,5,temp,menu_text_color,ST7735_BLACK);
 }
 
 void updateIndicator(int on){
