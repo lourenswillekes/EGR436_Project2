@@ -94,6 +94,8 @@ volatile char buffer[BUFFER_LENGTH];
 volatile uint8_t idx = 0;
 volatile uint8_t response_complete = 0;
 
+char *stockAPIKey = "R4D8SF5DHSXF8RGN";
+
 volatile int second_count = 0;
 
 int visual_indication = 0;
@@ -252,9 +254,6 @@ int main(void)
 
             char ESP8266String[300];
             char PostSensorData[2000];
-            strcpy(ESP8266String,"AT+CIPSTART=\"TCP\",\"api.pushingbox.com\",80\r\n");
-            UART_transmitString(EUSCI_A2_BASE, ESP8266String);
-            Timer32_waitms(3000);
 
             sprintf(PostSensorData,"GET "
                     "/pushingbox?devid=v12285A95612A4A0&ID=%d&BatteryEnabled=%d"
@@ -266,12 +265,21 @@ int main(void)
                     input_current,battery_current,output_current);
 
             int formLength=strlen(PostSensorData);
-            // send api request for encrypting sensor data
-            sprintf(ESP8266String, "AT+CIPSEND=%d\r\n",formLength);
-            UART_transmitString(EUSCI_A2_BASE,ESP8266String);
-            Timer32_waitms(100);
-            UART_transmitString(EUSCI_A2_BASE,PostSensorData);
-            Timer32_waitms(100);
+
+            do{
+                strcpy(ESP8266String,"AT+CIPSTART=\"TCP\",\"api.pushingbox.com\",80\r\n");
+                success = ESP8266CmdOut(4, ESP8266String, "CONNECT", 3000, 500, TRUE);
+
+                if(success){
+                    sprintf(ESP8266String, "AT+CIPSEND=%d\r\n",formLength);
+                    success = ESP8266CmdOut(5, ESP8266String, "OK", 500, 500, TRUE);
+                }
+
+                if(success){
+                    success = ESP8266CmdOut(6, PostSensorData, "SEND OK", 500, 1000, FALSE);
+                }
+            }while(!success);
+
         }
 #endif
         if((second_count % 20) == 0){
