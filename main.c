@@ -114,9 +114,12 @@ float output_current = 20.3;
 float input_current = 22.3;
 float battery_current = 18.2;
 
+int warning_count = 0;
 
 uint8_t getBMEData(void);
 int ESP8266CmdOut(int cmdID, const char *cmdOut, char *response, int postCmdWait, int errorResponseWait, bool retry);
+void send_Warning_Messages(float value);
+void upload_to_googlesheets(void);
 
 int main(void)
 {
@@ -251,35 +254,7 @@ int main(void)
         //Push new data to google sheets
         if((second_count % 30) == 0){
             // connect to Google pushingbox API
-
-            char ESP8266String[300];
-            char PostSensorData[2000];
-
-            sprintf(PostSensorData,"GET "
-                    "/pushingbox?devid=v12285A95612A4A0&ID=%d&BatteryEnabled=%d"
-                    "&celData=%f&fehrData=%f&Humidity=%f"
-                    "&Pressure=%f&Vout=%f&Iin=%f&Ibat=%f&Iout=%f"
-                    " HTTP/1.1\r\nHost: api.pushingbox.com\r\nUser-Agent: ESP8266/1.0\r\nConnection: "
-                    "close\r\n\r\n",USER,BATTERY_ENABLED,((BME_Senosr.temperature - 32) / 1.8 ),
-                    BME_Senosr.temperature, BME_Senosr.humidity,BME_Senosr.pressure,output_voltage,
-                    input_current,battery_current,output_current);
-
-            int formLength=strlen(PostSensorData);
-
-            do{
-                strcpy(ESP8266String,"AT+CIPSTART=\"TCP\",\"api.pushingbox.com\",80\r\n");
-                success = ESP8266CmdOut(4, ESP8266String, "CONNECT", 3000, 500, TRUE);
-
-                if(success){
-                    sprintf(ESP8266String, "AT+CIPSEND=%d\r\n",formLength);
-                    success = ESP8266CmdOut(5, ESP8266String, "OK", 500, 500, TRUE);
-                }
-
-                if(success){
-                    success = ESP8266CmdOut(6, PostSensorData, "SEND OK", 500, 1000, FALSE);
-                }
-            }while(!success);
-
+            upload_to_googlesheets();
         }
 #endif
         if((second_count % 20) == 0){
@@ -290,6 +265,17 @@ int main(void)
 
             //Send new values to the screen
             updateDataDisplay();
+
+            if(BME_Senosr.humidity > 70.0){
+                if(warning_count == 0){
+                    send_Warning_Messages(BME_Senosr.humidity);
+                }else{
+                    if(warning_count > 6){
+                        warning_count = 0;
+                    }
+                }
+                warning_count++;
+            }
 #endif
         }
     }
@@ -327,6 +313,64 @@ int ESP8266CmdOut(int cmdID, const char *cmdOut, char *response, int postCmdWait
         attempt_count++;
     }
     return successful;
+}
+void upload_to_googlesheets(void){
+    char ESP8266String[300];
+    char PostSensorData[2000];
+    int success = 0;
+
+    sprintf(PostSensorData,"GET "
+            "/pushingbox?devid=v12285A95612A4A0&ID=%d&BatteryEnabled=%d"
+            "&celData=%f&fehrData=%f&Humidity=%f"
+            "&Pressure=%f&Vout=%f&Iin=%f&Ibat=%f&Iout=%f"
+            " HTTP/1.1\r\nHost: api.pushingbox.com\r\nUser-Agent: ESP8266/1.0\r\nConnection: "
+            "close\r\n\r\n",USER,BATTERY_ENABLED,((BME_Senosr.temperature - 32) / 1.8 ),
+            BME_Senosr.temperature, BME_Senosr.humidity,BME_Senosr.pressure,output_voltage,
+            input_current,battery_current,output_current);
+
+    int formLength=strlen(PostSensorData);
+
+    do{
+        strcpy(ESP8266String,"AT+CIPSTART=\"TCP\",\"api.pushingbox.com\",80\r\n");
+        success = ESP8266CmdOut(4, ESP8266String, "CONNECT", 3000, 500, TRUE);
+
+        if(success){
+            sprintf(ESP8266String, "AT+CIPSEND=%d\r\n",formLength);
+            success = ESP8266CmdOut(5, ESP8266String, "OK", 500, 500, TRUE);
+        }
+
+        if(success){
+            success = ESP8266CmdOut(6, PostSensorData, "SEND OK", 500, 1000, FALSE);
+        }
+    }while(!success);
+}
+void send_Warning_Messages(float value){
+    // connect to Google pushingbox API
+
+    char ESP8266String[300];
+    char PostSensorData[2000];
+    int success = 0;
+
+    sprintf(PostSensorData,"GET "
+            "/pushingbox?devid=vCA9C23EC5743864&value=%f"
+            " HTTP/1.1\r\nHost: api.pushingbox.com\r\nUser-Agent: ESP8266/1.0\r\nConnection: "
+            "close\r\n\r\n",value);
+
+    int formLength=strlen(PostSensorData);
+
+    do{
+        strcpy(ESP8266String,"AT+CIPSTART=\"TCP\",\"api.pushingbox.com\",80\r\n");
+        success = ESP8266CmdOut(4, ESP8266String, "CONNECT", 3000, 500, TRUE);
+
+        if(success){
+            sprintf(ESP8266String, "AT+CIPSEND=%d\r\n",formLength);
+            success = ESP8266CmdOut(5, ESP8266String, "OK", 500, 500, TRUE);
+        }
+
+        if(success){
+            success = ESP8266CmdOut(6, PostSensorData, "SEND OK", 500, 1000, FALSE);
+        }
+    }while(!success);
 }
 
 uint8_t getBMEData(void){
