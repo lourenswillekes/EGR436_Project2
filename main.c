@@ -107,6 +107,12 @@ int read_sensor = 0;
 struct bme280_dev dev;
 struct bme280_data compensated_data;
 
+float output_voltage = 3.3;
+float output_current = 20.3;
+float input_current = 22.3;
+float battery_current = 18.2;
+
+
 uint8_t getBMEData(void);
 int ESP8266CmdOut(int cmdID, const char *cmdOut, char *response, int postCmdWait, int errorResponseWait, bool retry);
 
@@ -117,6 +123,7 @@ int main(void)
     uint8_t result;
     int err = 0;
     int invalid = 1;
+    int success;
 
     int julian, year, month, day, hour, minute, second;
     RTC_C_Calendar currentTime =
@@ -178,67 +185,14 @@ int main(void)
     //Enable Module
     MAP_GPIO_setOutputHighOnPin(GPIO_PORT_P4, GPIO_PIN1);
 
-    // set mode
-    int success = ESP8266CmdOut(1, AT_MODE, "OK", 2000, 100, TRUE);
-    /*UART_transmitString(EUSCI_A2_BASE, AT_MODE);
-    Timer32_waitms(2000);
-    res = strstr(buffer, "OK");
-    if (NULL != res)
-    {
-        UART_transmitString(EUSCI_A0_BASE, "01  ACK'd\r\n");
-    } else
-    {
-        err = 1;
-        UART_transmitString(EUSCI_A0_BASE, "01  NOT ACK'd\r\n");
-    }
-*/
-   success = ESP8266CmdOut(2, AT_WIFI, "OK", 6000, 200, TRUE);
-   /*if (!err) {
-        // connect wifi
-        invalid = 1;
-        while(invalid){
-            idx = 0;
-            UART_transmitString(EUSCI_A2_BASE, AT_WIFI);
-            Timer32_waitms(6000);
-            res = strstr(buffer, "OK");
-            if (NULL != res)
-            {
-                UART_transmitString(EUSCI_A0_BASE, "02  ACK'd\r\n");
+    //Set mode
+    success = ESP8266CmdOut(1, AT_MODE, "OK", 2000, 100, TRUE);
 
-                invalid = 0;
-            } else
-            {
-                err = 2;
-                UART_transmitString(EUSCI_A0_BASE, "02  NOT ACK'd\r\n");
+    //Connect to Wi-Fi
+    success = ESP8266CmdOut(2, AT_WIFI, "OK", 6000, 200, TRUE);
 
-                Timer32_waitms(1500); //give the user time to setup wifi
-            }
-        }
-    }*/
-
+    //Query for time from NIST
     success = ESP8266CmdOut(3, AT_NIST, "IPD", 2000, 5000, TRUE);
-    /*if (!err) {
-    // request time
-        invalid = 1;
-        while(invalid){
-            idx = 0;
-            UART_transmitString(EUSCI_A2_BASE, AT_NIST);
-            Timer32_waitms(2000);
-            res = strstr(buffer, "OK");
-            if (NULL != res)
-            {
-                UART_transmitString(EUSCI_A0_BASE, "03  ACK'd\r\n");
-
-                invalid = 0;
-            } else
-            {
-                err = 3;
-                UART_transmitString(EUSCI_A0_BASE, "03  NOT ACK'd\r\n");
-
-                Timer32_waitms(5000);
-            }
-        }
-    }*/
 
     if(success){
         res = strstr(buffer, "IPD,51:");
@@ -274,86 +228,43 @@ int main(void)
     Timer32_waitms(20);
     result = getBMEData();
     updateDataDisplay();
+    update_power_display(output_voltage,output_current,input_current,battery_current);
 #endif
-
-    /*if (!err) {
-    // get time and date
-    res = strstr(buffer, "IPD,51:");
-    if (NULL != res)
-    {
-        UART_transmitString(EUSCI_A0_BASE, "04  ACK'd\r\n");
-        res += 8; // move to start of time and date
-        sscanf(res, "%d %d-%d-%d %d:%d:%d", &julian, &year, &month, &day, &hour, &minute, &second);
-        hour = (hour + 20) % 24;
-    } else
-    {
-        err = 4;
-        UART_transmitString(EUSCI_A0_BASE, "04  NOT ACK'd\r\n");
-    }
-    }
-
-
-    if (!err) {
-        // set time and date
-        currentTime.year = year;
-        currentTime.month = month;
-        currentTime.dayOfmonth = day;
-        currentTime.hours = hour;
-        currentTime.minutes = minute;
-        currentTime.seconds = second;
-        RTC_setFromCalendar(&currentTime);
-        //update LCD
-        Timer32_waitms(100);
-        create_data_display();
-        Timer32_waitms(100);
-        updateTimeandDate();
-    }*/
-
-
 
     while(1)
     {
-        /*if (visual_indication){
-            visual_indication = 0;
-            printTimeandDate();
-        }*/
 #if DISPLAY_METHOD == LCD || DISPLAY_METHOD == LCD_AND_GOOGLE_SHEETS
         //Update LCD Displayed Time
         if (59 < second_count)
         {
             second_count = 0;
             currentTime = RTC_read();
-            /*
-            sprintf(time_and_date, "%d/%d/%d %d:%d:%d\r\n", currentTime.year,
-                    currentTime.month, currentTime.dayOfmonth, currentTime.hours,
-                    currentTime.minutes, currentTime.seconds);
-
-            UART_transmitString(EUSCI_A0_BASE,time_and_date);
-            */
-
             updateTimeandDate();
+
+            update_power_display(output_voltage,output_current,input_current,battery_current);
         }
 #endif
 
 #if DISPLAY_METHOD == GOOGLE_SHEETS || DISPLAY_METHOD == LCD_AND_GOOGLE_SHEETS
         //Push new data to google sheets
         if((second_count % 30) == 0){
-
             // connect to Google pushingbox API
-            //char *pushingBoxConnect = "AT+CIPSTART=\"TCP\",\"api.pushingbox.com\",80\r\n";
+
             char ESP8266String[300];
             char PostSensorData[2000];
             strcpy(ESP8266String,"AT+CIPSTART=\"TCP\",\"api.pushingbox.com\",80\r\n");
             UART_transmitString(EUSCI_A2_BASE, ESP8266String);
             Timer32_waitms(3000);
-            //"/pushingbox?devid=v12285A95612A4A0&humidityData=%f&celData=%f&fehrData=%f&hicData=%f&hifData=%d"
+
             sprintf(PostSensorData,"GET "
                     "/pushingbox?devid=v12285A95612A4A0&ID=%d&BatteryEnabled=%d"
                     "&celData=%f&fehrData=%f&Humidity=%f"
                     "&Pressure=%f&Vout=%f&Iin=%f&Ibat=%f&Iout=%f"
                     " HTTP/1.1\r\nHost: api.pushingbox.com\r\nUser-Agent: ESP8266/1.0\r\nConnection: "
-                    "close\r\n\r\n",USER,BATTERY_ENABLED,((BME_Senosr.temperature - 32) / 1.8 ),BME_Senosr.temperature, BME_Senosr.humidity,BME_Senosr.pressure,3.3,20.5,21.2,23.3);
-            //UART_transmitString(EUSCI_A0_BASE,PostSensorData);
+                    "close\r\n\r\n",USER,BATTERY_ENABLED,((BME_Senosr.temperature - 32) / 1.8 ),
+                    BME_Senosr.temperature, BME_Senosr.humidity,BME_Senosr.pressure,output_voltage,
+                    input_current,battery_current,output_current);
+
             int formLength=strlen(PostSensorData);
             // send api request for encrypting sensor data
             sprintf(ESP8266String, "AT+CIPSEND=%d\r\n",formLength);
@@ -364,28 +275,6 @@ int main(void)
         }
 #endif
         if((second_count % 20) == 0){
-            /*//Retrieve sensor values from BME280
-            res = BME280_Read(&dev, &compensated_data);
-
-            //Format pressure measurement
-            float temp_pressure = ( (float) compensated_data.pressure )/ 100.0;
-
-            //convert from kPa to mmHg
-            temp_pressure *= ( 0.760 / 101325.0);
-
-            //scale by 1000 for mmHg. Conversion leaves the value in decimal notation
-            //Save current formated measurement
-            BME_Senosr.pressure = temp_pressure * 1000;
-
-            //Correct for altitude
-            BME_Senosr.pressure += 17;
-
-            //Save formated humidity measurement
-            BME_Senosr.humidity = compensated_data.humidity/1000.0; //Convert value to percentage
-
-            //Convert from degrees C to F and save
-            BME_Senosr.temperature = (((compensated_data.temperature / 100.0) * (9.0/5.0)) + 32.0);
-            */
             result = getBMEData();
 #if DISPLAY_METHOD == LCD || DISPLAY_METHOD == LCD_AND_GOOGLE_SHEETS
             //This new data is compared with past trends.

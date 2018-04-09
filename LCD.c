@@ -194,14 +194,18 @@ void updateForecast(int forecast_code){
 #endif
 
 void create_data_display(void){
-    ST7735_DrawString2(20,50,"BME Data",menu_text_color,ST7735_BLACK);
-    ST7735_DrawFastHLine(0,65,160,grid_color);
-    ST7735_DrawString2(0,70,"T",menu_text_color,ST7735_BLACK);
-    ST7735_DrawString2(0,90,"H",menu_text_color,ST7735_BLACK);
+    ST7735_DrawFastHLine(0,25,160,grid_color);
+    ST7735_DrawString2(20,30,"BME",menu_text_color,ST7735_BLACK);
+    ST7735_DrawString2(100,30,"I(mA)",menu_text_color,ST7735_BLACK);
+    ST7735_DrawFastHLine(0,45,160,grid_color);
+    ST7735_DrawFastVLine(90,45,63,grid_color);
+    ST7735_DrawString2(0,50,"T",menu_text_color,ST7735_BLACK);
+    ST7735_DrawString2(0,70,"H",menu_text_color,ST7735_BLACK);
 
 
-    ST7735_DrawString2(0,110,"Bp",menu_text_color,ST7735_BLACK);
+    ST7735_DrawString2(0,90,"P",menu_text_color,ST7735_BLACK);
     ST7735_DrawFastHLine(0,108,160,grid_color);
+    ST7735_DrawString2(20,110,"Vout = ",menu_text_color,ST7735_BLACK);
 }
 
 void updateDataDisplay(void){
@@ -209,19 +213,41 @@ void updateDataDisplay(void){
     //print temp
     sprintf(data,"%02.0f%cF%c",BME_Senosr.temperature,247,BME_Senosr.temp_change_direction);
     TenMsDelay(1);
-    ST7735_DrawString2(20,70,data,menu_text_color,ST7735_BLACK);
+    ST7735_DrawString2(20,50,data,menu_text_color,ST7735_BLACK);
 
     //print humidity
     sprintf(data,"%02.0f%%%c",BME_Senosr.humidity,BME_Senosr.humidity_change_direction);
     TenMsDelay(1);
-    ST7735_DrawString2(20,90,data,menu_text_color,ST7735_BLACK);
+    ST7735_DrawString2(20,70,data,menu_text_color,ST7735_BLACK);
 
     //print bp
-    sprintf(data,"%2.1fmmHg%c",BME_Senosr.pressure,BME_Senosr.pressure_change_direction);
+    sprintf(data,"%2.1f%c",BME_Senosr.pressure,BME_Senosr.pressure_change_direction);
     TenMsDelay(1);
-    ST7735_DrawString2(40,110,data,menu_text_color,ST7735_BLACK);
+    ST7735_DrawString2(20,90,data,menu_text_color,ST7735_BLACK);
 }
 
+void update_power_display(float outV, float outI, float inI, float batI){
+    char data[12];
+    //print input current
+    sprintf(data,"%02.1f",inI);
+    TenMsDelay(1);
+    ST7735_DrawString2(100,50,data,menu_text_color,ST7735_BLACK);
+
+    //print output current
+    sprintf(data,"%02.1f",outI);
+    TenMsDelay(1);
+    ST7735_DrawString2(100,70,data,menu_text_color,ST7735_BLACK);
+
+    //print battery current
+    sprintf(data,"%2.1f",batI);
+    TenMsDelay(1);
+    ST7735_DrawString2(100,90,data,menu_text_color,ST7735_BLACK);
+
+    //print output voltage
+    sprintf(data,"%2.1fV",outV);
+    TenMsDelay(1);
+    ST7735_DrawString2(95,110,data,menu_text_color,ST7735_BLACK);
+}
 
 void update_totals(void){
     //increments measurement totals and count for average comparisons
@@ -276,10 +302,10 @@ void printTimeandDate(void){
 
 void updateIndicator(int on){
     if(on){
-        ST7735_DrawString2(20,5,":",menu_text_color,ST7735_BLACK);
+        ST7735_DrawString2(22,5,":",menu_text_color,ST7735_BLACK);
     }
     else{
-        ST7735_DrawString2(20,5," ",menu_text_color,ST7735_BLACK);
+        ST7735_DrawString2(22,5," ",menu_text_color,ST7735_BLACK);
     }
 }
 

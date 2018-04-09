@@ -119,4 +119,6 @@ int getChangeOrientation(float total, int count, float current);
 
 void updateIndicator(int on);
 
+void update_power_display(float inVolt, float outI, float inI, float batI);
+
 #endif /* LCD_H_ */
