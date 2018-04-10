@@ -24,11 +24,10 @@ void ADC_init(void)
     MAP_ADC14_configureConversionMemory(ADC_MEM0, ADC_VREFPOS_AVCC_VREFNEG_VSS,
                 ADC_INPUT_A0, false);
     MAP_ADC14_configureConversionMemory(ADC_MEM1, ADC_VREFPOS_AVCC_VREFNEG_VSS,
-                ADC_INPUT_A0, true);
-    MAP_ADC14_enableSampleTimer(ADC_MANUAL_ITERATION);
+                ADC_INPUT_A1, true);
+    MAP_ADC14_enableSampleTimer(ADC_AUTOMATIC_ITERATION);
 
-    // enable the interrupt on adc 1 and conversion
-    MAP_ADC14_enableInterrupt(ADC_INT1);
+    // enable conversion
     MAP_ADC14_enableConversion();
 
 }
@@ -38,9 +37,7 @@ void ADC_read(uint16_t *mem0, uint16_t *mem1)
     // start a conversion
     MAP_ADC14_toggleConversionTrigger();
     // wait until it completes
-    // TODO: figure out why it goes back and forth between int0 and int1?????
-//    while (0 == (ADC14->IFGR0 & ADC_INT0));
-    while (0 == (ADC14->IFGR0 & 3));
+    while (0 == (ADC14->IFGR0 & ADC_INT1));
 
     // and get the result
     *mem0 = MAP_ADC14_getResult(ADC_MEM0);
