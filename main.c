@@ -197,16 +197,17 @@ int main(void)
 
 
     uint16_t mem0, mem1;
+    int currentSenseResistor = 10;
+    int milAmpScale = 1000;
     while(1)
     {
 
         ADC_read(&mem0, &mem1);
         voltage = ((mem0 / 16384.0) * 3.3);
-        current = (((mem1 - 8192) / 8192.0) * 3.3);
+        current = (((((mem1 - 8192) * 3.3) / 8192.0) / currentSenseResistor) * milAmpScale);
         Timer32_waitms(500);
 
     }
-
 
 
 
