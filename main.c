@@ -82,6 +82,12 @@
 #define L 1
 #define USER J
 
+// vout monitor resistor
+#define RSENSE 9.86
+
+
+
+
 #if USER == J
 const char *AT_WIFI = "AT+CWJAP=\"Samsung Galaxy S7 9448\",\"clke5086\"\r\n";
 #elif USER==L
@@ -197,14 +203,13 @@ int main(void)
 
 
     uint16_t mem0, mem1;
-    int currentSenseResistor = 10;
     int milAmpScale = 1000;
     while(1)
     {
 
         ADC_read(&mem0, &mem1);
         voltage = ((mem0 / 16384.0) * 3.3);
-        current = (((((mem1 - 8192) * 3.3) / 8192.0) / currentSenseResistor) * milAmpScale);
+        current = (((((mem1 - 8192) * 3.3) / 8192.0) / RSENSE) * milAmpScale);
         Timer32_waitms(500);
 
     }
