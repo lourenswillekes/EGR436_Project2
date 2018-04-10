@@ -120,6 +120,7 @@ uint8_t getBMEData(void);
 int ESP8266CmdOut(int cmdID, const char *cmdOut, char *response, int postCmdWait, int errorResponseWait, bool retry);
 void send_Warning_Messages(float value);
 void upload_to_googlesheets(void);
+int queryWunderground(void);
 
 int main(void)
 {
@@ -233,7 +234,7 @@ int main(void)
     Timer32_waitms(20);
     result = getBMEData();
     updateDataDisplay();
-    update_power_display(output_voltage,output_current,input_current,battery_current);
+    //update_power_display(output_voltage,output_current,input_current,battery_current);
 #endif
 
     while(1)
@@ -246,7 +247,8 @@ int main(void)
             currentTime = RTC_read();
             updateTimeandDate();
 
-            update_power_display(output_voltage,output_current,input_current,battery_current);
+            //update_power_display(output_voltage,output_current,input_current,battery_current);
+            queryWunderground();
         }
 #endif
 
@@ -344,6 +346,37 @@ void upload_to_googlesheets(void){
         }
     }while(!success);
 }
+int queryWunderground(void){
+    // connect to Google pushingbox API
+
+    char ESP8266String[300];
+    char PostSensorData[2000];
+    int success = 0;
+
+    sprintf(PostSensorData,"GET "
+            "http://api.wunderground.com/api/df163c928ef88858/conditions/q/MI/Grand_Rapids.json"
+            " HTTP/1.1\r\nHost: api.wunderground.com\r\nConnection: "
+            "close\r\n\r\n");
+
+    int formLength=strlen(PostSensorData);
+
+    do{
+        strcpy(ESP8266String,"AT+CIPSTART=\"TCP\",\"api.wunderground.com\",80\r\n");
+        success = ESP8266CmdOut(10, ESP8266String, "CONNECT", 3000, 500, TRUE);
+
+        if(success){
+            sprintf(ESP8266String, "AT+CIPSEND=%d\r\n",formLength);
+            success = ESP8266CmdOut(11, ESP8266String, "OK", 500, 500, TRUE);
+        }
+
+        if(success){
+            success = ESP8266CmdOut(12, PostSensorData, "SEND OK", 500, 1000, FALSE);
+        }
+    }while(!success);
+
+    return success;
+}
+
 void send_Warning_Messages(float value){
     // connect to Google pushingbox API
 
@@ -360,15 +393,15 @@ void send_Warning_Messages(float value){
 
     do{
         strcpy(ESP8266String,"AT+CIPSTART=\"TCP\",\"api.pushingbox.com\",80\r\n");
-        success = ESP8266CmdOut(4, ESP8266String, "CONNECT", 3000, 500, TRUE);
+        success = ESP8266CmdOut(7, ESP8266String, "CONNECT", 3000, 500, TRUE);
 
         if(success){
             sprintf(ESP8266String, "AT+CIPSEND=%d\r\n",formLength);
-            success = ESP8266CmdOut(5, ESP8266String, "OK", 500, 500, TRUE);
+            success = ESP8266CmdOut(8, ESP8266String, "OK", 500, 500, TRUE);
         }
 
         if(success){
-            success = ESP8266CmdOut(6, PostSensorData, "SEND OK", 500, 1000, FALSE);
+            success = ESP8266CmdOut(9, PostSensorData, "SEND OK", 500, 1000, FALSE);
         }
     }while(!success);
 }
