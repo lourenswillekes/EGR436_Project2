@@ -64,7 +64,7 @@
 #include "environment_sensor.h"     //BME280 library
 
 
-#define BUFFER_LENGTH 512
+#define BUFFER_LENGTH 3000
 #define ENABLED  1
 #define DISABLED 0
 #define BATTERY_ENABLED DISABLED
@@ -370,9 +370,24 @@ int queryWunderground(void){
         }
 
         if(success){
-            success = ESP8266CmdOut(12, PostSensorData, "SEND OK", 500, 1000, FALSE);
+            //success = ESP8266CmdOut(12, PostSensorData, "SEND OK", 500, 1000, FALSE);
+            success = ESP8266CmdOut(12, PostSensorData, "nowcast", 3000, 1300, FALSE);
+
         }
     }while(!success);
+
+    UART_transmitString(EUSCI_A0_BASE, "\nJASON\n");
+    UART_transmitString(EUSCI_A0_BASE, buffer);
+    //Parse JSON for values
+        //Find "weather" and "temp_f" and "windchill_f"
+    char *res = NULL;
+    char forecast[25];
+    res = strstr(buffer, "icon");
+    if(res != NULL){
+        sscanf(res,"temp_f\":%s,",forecast);
+        UART_transmitString(EUSCI_A0_BASE, forecast);
+    }
+
 
     return success;
 }
