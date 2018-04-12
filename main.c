@@ -91,6 +91,9 @@ const char *AT_NIST = "AT+CIPSTART=\"TCP\",\"time.nist.gov\",13\r\n";
 const char *AT_MODE = "AT+CWMODE_CUR=3\r\n";
 
 volatile char buffer[BUFFER_LENGTH];
+volatile char JASON_Buf[BUFFER_LENGTH];
+bool recieving_JASON = FALSE;
+int jIdx = 0;
 volatile uint8_t idx = 0;
 volatile uint8_t response_complete = 0;
 
@@ -268,7 +271,7 @@ int main(void)
             //Send new values to the screen
             updateDataDisplay();
 
-            if(BME_Senosr.humidity > 70.0){
+            if(BME_Senosr.humidity > 50.0){
                 if(warning_count == 0){
                     send_Warning_Messages(BME_Senosr.humidity);
                 }else{
@@ -371,22 +374,35 @@ int queryWunderground(void){
 
         if(success){
             //success = ESP8266CmdOut(12, PostSensorData, "SEND OK", 500, 1000, FALSE);
+            recieving_JASON = TRUE;
             success = ESP8266CmdOut(12, PostSensorData, "nowcast", 3000, 1300, FALSE);
-
+            recieving_JASON = FALSE;
         }
     }while(!success);
 
-    UART_transmitString(EUSCI_A0_BASE, "\nJASON\n");
-    UART_transmitString(EUSCI_A0_BASE, buffer);
+    //UART_transmitString(EUSCI_A0_BASE, "\nJASON\n");
+   //UART_transmitString(EUSCI_A0_BASE, &buffer[0]);
+
+    Timer32_waitms(500);
     //Parse JSON for values
         //Find "weather" and "temp_f" and "windchill_f"
     char *res = NULL;
-    char forecast[25];
-    res = strstr(buffer, "icon");
+    char forecast_data[25];
+    res = strstr(JASON_Buf, "temp_f\":");
     if(res != NULL){
-        sscanf(res,"temp_f\":%s,",forecast);
-        UART_transmitString(EUSCI_A0_BASE, forecast);
+        sscanf(res,"temp_f\":%s,",forecast_data);
+        UART_transmitString(EUSCI_A0_BASE, forecast_data);
     }
+
+    //convert
+
+    res = strstr(JASON_Buf, "feelslike_f\":");
+    if(res != NULL){
+        sscanf(res,"feelslike_f\":%s,",forecast_data);
+        UART_transmitString(EUSCI_A0_BASE, forecast_data);
+    }
+
+    //convert
 
 
     return success;
@@ -496,6 +512,12 @@ void UARTA2_ISR(void)
         if (BUFFER_LENGTH == idx)
         {
             idx = 0;
+        }
+        if(recieving_JASON){
+            JASON_Buf[jIdx++] = (char)byte;
+            if(jIdx == BUFFER_LENGTH){
+                jIdx = 0;
+            }
         }
     }
 }
