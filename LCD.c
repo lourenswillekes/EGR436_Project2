@@ -15,7 +15,9 @@
 #include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
-
+#if DISPLAY_METHOD == LCD || DISPLAY_METHOD == LCD_AND_GOOGLE_SHEETS
+#include "weatherUnderground.txt"
+#endif
 //#include "RTC_Module.h"
 #include "RTC_driver.h"
 
@@ -198,9 +200,11 @@ void create_data_display(void){
     ST7735_DrawString2(20,30,"BME",menu_text_color,ST7735_BLACK);
     //ST7735_DrawString2(100,30,"I(mA)",menu_text_color,ST7735_BLACK);
     ST7735_DrawFastHLine(0,45,90,grid_color);
-    ST7735_DrawFastVLine(90,30,78,grid_color);
+    ST7735_DrawFastVLine(90,25,83,grid_color);
     ST7735_DrawString2(0,50,"T",menu_text_color,ST7735_BLACK);
     ST7735_DrawString2(0,70,"H",menu_text_color,ST7735_BLACK);
+
+    ST7735_DrawBitmap(110, 65, weatherUnderground, 40, 40);
 
 
     ST7735_DrawString2(0,90,"P",menu_text_color,ST7735_BLACK);

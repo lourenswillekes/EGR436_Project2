@@ -62,6 +62,7 @@
 #include "UART_driver.h"
 #include "LCD.h"
 #include "environment_sensor.h"     //BME280 library
+#include "ST7735.h"
 
 
 #define BUFFER_LENGTH 3000
@@ -75,6 +76,8 @@
 #define LCD_AND_GOOGLE_SHEETS   2
 
 #define DISPLAY_METHOD          LCD_AND_GOOGLE_SHEETS
+
+
 
 //Determines Wi-Fi Credentials
 #define J 0
@@ -118,6 +121,9 @@ float input_current = 22.3;
 float battery_current = 18.2;
 
 int warning_count = 0;
+
+extern uint16_t menu_text_color;
+extern uint16_t highlight_text_color;
 
 uint8_t getBMEData(void);
 int ESP8266CmdOut(int cmdID, const char *cmdOut, char *response, int postCmdWait, int errorResponseWait, bool retry);
@@ -394,16 +400,21 @@ int queryWunderground(void){
         UART_transmitString(EUSCI_A0_BASE, forecast_data);
     }
 
-    //convert
+    //print
+    char temp[20];
+    sprintf(temp,"%s%cF",forecast_data,247);
+    ST7735_DrawString2(100,70,temp,menu_text_color,ST7735_BLACK);
 
-    res = strstr(JASON_Buf, "feelslike_f\":");
+    memset(forecast_data, 0, 25);
+    res = strstr(JASON_Buf, "wind_mph\":");
     if(res != NULL){
         sscanf(res,"feelslike_f\":%s,",forecast_data);
         UART_transmitString(EUSCI_A0_BASE, forecast_data);
     }
 
-    //convert
-
+    //print
+    sprintf(temp,"W %s MPH",forecast_data);
+    ST7735_DrawString2(100,90,temp,menu_text_color,ST7735_BLACK);
 
     return success;
 }
