@@ -79,6 +79,10 @@
 #define DISPLAY_METHOD          LCD_AND_GOOGLE_SHEETS
 
 
+// vout monitor resistor
+// TODO: measure this with dmm to get accurate value
+#define RSENSE 1
+
 
 //Determines Wi-Fi Credentials
 #define J 0
@@ -129,6 +133,7 @@ extern uint16_t highlight_text_color;
 uint8_t getBMEData(void);
 int ESP8266CmdOut(int cmdID, const char *cmdOut, char *response, int postCmdWait, int errorResponseWait, bool retry);
 void send_Warning_Messages(float value);
+void updateOutputValues(void);
 void upload_to_googlesheets(void);
 int queryWunderground(void);
 
@@ -274,6 +279,8 @@ int main(void)
 #endif
         if((second_count % 20) == 0){
             result = getBMEData();
+            updateOutputValues();
+
 #if DISPLAY_METHOD == LCD || DISPLAY_METHOD == LCD_AND_GOOGLE_SHEETS
             //This new data is compared with past trends.
             update_totals();
@@ -295,6 +302,7 @@ int main(void)
         }
     }
 }
+
 int ESP8266CmdOut(int cmdID, const char *cmdOut, char *response, int postCmdWait, int errorResponseWait, bool retry){
     bool successful = 0;
     char *res = NULL;
@@ -329,6 +337,17 @@ int ESP8266CmdOut(int cmdID, const char *cmdOut, char *response, int postCmdWait
     }
     return successful;
 }
+
+void updateOutputValues(void)
+{
+    uint16_t mem0, mem1;
+    // read values from the adc
+    ADC_read(&mem0, &mem1);
+    // convert adc values to voltage (V) and current (mA)
+    output_voltage = ((mem0 / 16384.0) * 3.3);
+    output_current = (((((mem1 - 8192) * 3.3) / 8192.0) / RSENSE) * 1000);
+}
+
 void upload_to_googlesheets(void){
     char ESP8266String[300];
     char PostSensorData[2000];
@@ -359,6 +378,7 @@ void upload_to_googlesheets(void){
         }
     }while(!success);
 }
+
 int queryWunderground(void){
     // connect to Google pushingbox API
 
@@ -477,6 +497,7 @@ uint8_t getBMEData(void){
 
     return res;
 }
+
 void RTC_ISR(void)
 {
     uint32_t status;
