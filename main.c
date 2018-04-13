@@ -57,6 +57,7 @@
 #include <stdint.h>
 #include <stdbool.h>
 
+#include "ADC_driver.h"
 #include "RTC_driver.h"
 #include "Timer32_driver.h"
 #include "UART_driver.h"
@@ -174,6 +175,9 @@ int main(void)
 
     // initialize timer32
     Timer32_init();
+
+    // initalize adc
+    ADC_init();
 
     /*
      * This method established the settings for the
