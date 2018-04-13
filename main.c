@@ -402,19 +402,19 @@ int queryWunderground(void){
 
     //print
     char temp[20];
-    sprintf(temp,"%s%cF",forecast_data,247);
-    ST7735_DrawString2(100,70,temp,menu_text_color,ST7735_BLACK);
+    sprintf(temp,"T %c%c%cF",forecast_data[0],forecast_data[1],247);
+    ST7735_DrawString2(95,70,temp,menu_text_color,ST7735_BLACK);
 
     memset(forecast_data, 0, 25);
-    res = strstr(JASON_Buf, "wind_mph\":");
+    res = strstr(JASON_Buf, "feelslike_f\":");
     if(res != NULL){
         sscanf(res,"feelslike_f\":%s,",forecast_data);
         UART_transmitString(EUSCI_A0_BASE, forecast_data);
     }
 
     //print
-    sprintf(temp,"W %s MPH",forecast_data);
-    ST7735_DrawString2(100,90,temp,menu_text_color,ST7735_BLACK);
+    sprintf(temp,"F %c%c%cF",forecast_data[1],forecast_data[2],247);
+    ST7735_DrawString2(95,90,temp,menu_text_color,ST7735_BLACK);
 
     return success;
 }
