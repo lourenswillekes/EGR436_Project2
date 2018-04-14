@@ -141,7 +141,7 @@ void get_stock_prices(void){
     memset(buffer, 0, BUFFER_LENGTH);
 
     sprintf(PostSensorData,"GET "
-                "https://www.alphavantage.co/query?function=BATCH_STOCK_QUOTES&symbols=MSFT,FB,AAPL&apikey=R4D8SF5DHSXF8RGN&datatype=json"
+                "http://www.alphavantage.co/query?function=BATCH_STOCK_QUOTES&symbols=MSFT,FB,AAPL&apikey=R4D8SF5DHSXF8RGN&datatype=json"
                 " HTTP/1.1\r\nHost: api.alphavantage.co\r\nUser-Agent: ESP8266/1.0\r\nConnection: "
                 "close\r\n\r\n");
 
