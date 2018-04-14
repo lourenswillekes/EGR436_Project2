@@ -131,6 +131,37 @@ void send_Warning_Messages(float value);
 void upload_to_googlesheets(void);
 int queryWunderground(void);
 
+char stocks[5][255];
+
+void get_stock_prices(void){
+    char ESP8266String[300];
+    char PostSensorData[2000];
+    int success = 0;
+
+    memset(buffer, 0, BUFFER_LENGTH);
+
+    sprintf(PostSensorData,"GET "
+                "https://www.alphavantage.co/query?function=BATCH_STOCK_QUOTES&symbols=MSFT,FB,AAPL&apikey=R4D8SF5DHSXF8RGN&datatype=json"
+                " HTTP/1.1\r\nHost: api.alphavantage.co\r\nUser-Agent: ESP8266/1.0\r\nConnection: "
+                "close\r\n\r\n");
+
+    int formLength=strlen(PostSensorData);
+
+    do{
+        strcpy(ESP8266String,"AT+CIPSTART=\"TCP\",\"api.alphavantage.co\",80\r\n");
+        success = ESP8266CmdOut(4, ESP8266String, "OK", 3000, 1000, TRUE);
+
+        if(success){
+            sprintf(ESP8266String, "AT+CIPSEND=%d\r\n",formLength);
+            success = ESP8266CmdOut(5, ESP8266String, "OK", 500, 500, TRUE);
+        }
+
+        if(success){
+            success = ESP8266CmdOut(6, PostSensorData, "SEND OK", 500, 1000, FALSE);
+        }
+    }while(!success);
+}
+
 int main(void)
 {
     int j;
@@ -245,7 +276,7 @@ int main(void)
     updateDataDisplay();
     //update_power_display(output_voltage,output_current,input_current,battery_current);
 #endif
-
+    get_stock_prices();
     while(1)
     {
 #if DISPLAY_METHOD == LCD || DISPLAY_METHOD == LCD_AND_GOOGLE_SHEETS
@@ -287,6 +318,8 @@ int main(void)
                 }
                 warning_count++;
             }
+
+            get_stock_prices();
 #endif
         }
     }
@@ -325,6 +358,7 @@ int ESP8266CmdOut(int cmdID, const char *cmdOut, char *response, int postCmdWait
     }
     return successful;
 }
+
 void upload_to_googlesheets(void){
     char ESP8266String[300];
     char PostSensorData[2000];
@@ -379,19 +413,14 @@ int queryWunderground(void){
         }
 
         if(success){
-            //success = ESP8266CmdOut(12, PostSensorData, "SEND OK", 500, 1000, FALSE);
             recieving_JASON = TRUE;
             success = ESP8266CmdOut(12, PostSensorData, "nowcast", 3000, 1300, FALSE);
             recieving_JASON = FALSE;
         }
     }while(!success);
 
-    //UART_transmitString(EUSCI_A0_BASE, "\nJASON\n");
-   //UART_transmitString(EUSCI_A0_BASE, &buffer[0]);
-
     Timer32_waitms(500);
-    //Parse JSON for values
-        //Find "weather" and "temp_f" and "windchill_f"
+
     char *res = NULL;
     char forecast_data[25];
     res = strstr(JASON_Buf, "temp_f\":");
