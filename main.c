@@ -76,7 +76,7 @@
 #define GOOGLE_SHEETS           1
 #define LCD_AND_GOOGLE_SHEETS   2
 
-#define DISPLAY_METHOD          LCD_AND_GOOGLE_SHEETS
+#define DISPLAY_METHOD          GOOGLE_SHEETS
 
 
 // vout monitor resistor
@@ -203,6 +203,13 @@ int main(void)
     //WIFI EN
     MAP_GPIO_setAsOutputPin(GPIO_PORT_P4, GPIO_PIN1);
 
+    //LEDS
+    MAP_GPIO_setAsOutputPin(GPIO_PORT_P2, GPIO_PIN2);
+    MAP_GPIO_setAsOutputPin(GPIO_PORT_P1, GPIO_PIN0);
+    MAP_GPIO_setOutputHighOnPin(GPIO_PORT_P1, GPIO_PIN0);
+    MAP_GPIO_setOutputLowOnPin(GPIO_PORT_P2, GPIO_PIN2);
+
+
     //WIFI RST (Pulled Up)
     MAP_GPIO_setAsInputPinWithPullUpResistor(GPIO_PORT_P4, GPIO_PIN3);
 
@@ -258,6 +265,9 @@ int main(void)
     //update_power_display(output_voltage,output_current,input_current,battery_current);
 #endif
 
+    updateOutputValues();
+
+
     while(1)
     {
 #if DISPLAY_METHOD == LCD || DISPLAY_METHOD == LCD_AND_GOOGLE_SHEETS
@@ -276,8 +286,11 @@ int main(void)
 #if DISPLAY_METHOD == GOOGLE_SHEETS || DISPLAY_METHOD == LCD_AND_GOOGLE_SHEETS
         //Push new data to google sheets
         if((second_count % 30) == 0){
+            MAP_GPIO_setOutputHighOnPin(GPIO_PORT_P2, GPIO_PIN2);
+
             // connect to Google pushingbox API
             upload_to_googlesheets();
+            MAP_GPIO_setOutputLowOnPin(GPIO_PORT_P2, GPIO_PIN2);
         }
 #endif
         if((second_count % 20) == 0){
