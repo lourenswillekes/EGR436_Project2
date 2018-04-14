@@ -215,9 +215,12 @@ int main(void)
     //Connect to Wi-Fi
     success = ESP8266CmdOut(2, AT_WIFI, "OK", 6000, 200, TRUE);
 
+#if DISPLAY_METHOD == LCD || DISPLAY_METHOD == LCD_AND_GOOGLE_SHEETS
     //Query for time from NIST
-    success = ESP8266CmdOut(3, AT_NIST, "IPD", 2000, 5000, TRUE);
-
+    success = ESP8266CmdOut(3, AT_NIST, "IPD", 5000, 5000, TRUE);
+#else
+    success = 0;
+#endif
     if(success){
         res = strstr(buffer, "IPD,51:");
         res += 8; // move to start of time and date
