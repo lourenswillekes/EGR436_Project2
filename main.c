@@ -265,9 +265,13 @@ int main(void)
     //update_power_display(output_voltage,output_current,input_current,battery_current);
 #endif
 
+#if BATTERY_ENABLED == 1
     updateOutputValues();
+#endif
 
+#if DISPLAY_METHOD == LCD || DISPLAY_METHOD == LCD_AND_GOOGLE_SHEETS
     queryWunderground();
+#endif
     Timer32_waitms(100);
 
     while(1)
@@ -297,7 +301,10 @@ int main(void)
 #endif
         if((second_count % 20) == 0){
             result = getBMEData();
+
+#if BATTERY_ENABLED == 1
             updateOutputValues();
+#endif
 
 #if DISPLAY_METHOD == LCD || DISPLAY_METHOD == LCD_AND_GOOGLE_SHEETS
             //This new data is compared with past trends.
