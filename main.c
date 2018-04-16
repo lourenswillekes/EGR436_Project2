@@ -76,7 +76,7 @@
 #define GOOGLE_SHEETS           1
 #define LCD_AND_GOOGLE_SHEETS   2
 
-#define DISPLAY_METHOD          GOOGLE_SHEETS
+#define DISPLAY_METHOD          LCD_AND_GOOGLE_SHEETS
 
 
 // vout monitor resistor
@@ -267,6 +267,8 @@ int main(void)
 
     updateOutputValues();
 
+    queryWunderground();
+    Timer32_waitms(100);
 
     while(1)
     {
