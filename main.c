@@ -130,12 +130,92 @@ int warning_count = 0;
 extern uint16_t menu_text_color;
 extern uint16_t highlight_text_color;
 
+char stocks[200];
+
 uint8_t getBMEData(void);
 int ESP8266CmdOut(int cmdID, const char *cmdOut, char *response, int postCmdWait, int errorResponseWait, bool retry);
 void send_Warning_Messages(float value);
 void updateOutputValues(void);
 void upload_to_googlesheets(void);
 int queryWunderground(void);
+
+void get_stock_prices(void){
+    char ESP8266String[300];
+    char StockRequest[2000];
+    int success = 0;
+
+    //memset(buffer, 0, BUFFER_LENGTH);
+
+    sprintf(StockRequest,"GET "
+                "https://api.thingspeak.com/apps/thinghttp/send_request?api_key=1K4U5L6STJR5HD5G"
+                " HTTP/1.1\r\nHost: api.thingspeak.com\r\nUser-Agent: ESP8266/1.0\r\nConnection: "
+                "close\r\n\r\n");
+
+    int formLength=strlen(StockRequest);
+
+    do{
+        strcpy(ESP8266String,"AT+CIPSTART=\"TCP\",\"api.thingspeak.com\",80\r\n");
+        success = ESP8266CmdOut(4, ESP8266String, "OK", 3000, 1000, TRUE);
+
+        if(success){
+            sprintf(ESP8266String, "AT+CIPSEND=%d\r\n",formLength);
+            success = ESP8266CmdOut(5, ESP8266String, "OK", 500, 500, TRUE);
+        }
+
+        if(success){
+            recieving_JASON = TRUE;
+            jIdx = 0;
+            success = ESP8266CmdOut(6, StockRequest, "CLOSED", 3000, 1000, FALSE);
+
+        }
+    }while(!success);
+
+    Timer32_waitms(500);
+    recieving_JASON = FALSE;
+
+
+    char *res = NULL;
+    char data[25];
+    char stockStr[200];
+    int count;
+    res = strstr(JASON_Buf, "Stock Quotes\":");
+    for(count = 0; count < 5; count++){
+        res = strstr(res, "1. symbol\":");
+        if(res != NULL){
+            sscanf(res,"1. symbol\":%s,",data);
+            UART_transmitString(EUSCI_A0_BASE, data);
+        }
+        strcat(stockStr,data);
+        stockStr[strlen(stockStr)-1]=':';
+
+        res = strstr(res, "2. price\":");
+        if(res != NULL){
+            sscanf(res,"2. price\":%s,",data);
+            UART_transmitString(EUSCI_A0_BASE, data);
+        }
+        strcat(stockStr,data);
+        stockStr[strlen(stockStr)-1]='\0';
+        strcat(stockStr," | ");
+    }
+    stockStr[strlen(stockStr)-1]='\0';
+    UART_transmitString(EUSCI_A0_BASE, stockStr);
+    strcpy(stocks,stockStr);
+    /*int offset;
+    int charsToPrint = 13;
+
+    for (offset = 0; offset < strlen(stocks); offset++)
+
+    {
+
+
+        ST7735_DrawString2(0,110,&stocks[offset],menu_text_color,ST7735_BLACK);
+
+        Timer32_waitms(200);
+    }*/
+
+}
+
+int str_offset = 0;
 
 int main(void)
 {
@@ -271,6 +351,7 @@ int main(void)
 
 #if DISPLAY_METHOD == LCD || DISPLAY_METHOD == LCD_AND_GOOGLE_SHEETS
     queryWunderground();
+    get_stock_prices();
 #endif
     Timer32_waitms(100);
 
@@ -325,6 +406,13 @@ int main(void)
             }
 #endif
         }
+       if((second_count % 3) == 0){
+           str_offset++;
+           if(str_offset == strlen(stocks)-1){
+               str_offset=0;
+           }
+           ST7735_DrawString2(0,110,&stocks[str_offset],menu_text_color,ST7735_BLACK);
+       }
     }
 }
 
