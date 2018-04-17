@@ -372,11 +372,11 @@ int main(void)
             check_BME = FALSE;
         }
 
-        /*if(update_stocks){
+        if(update_stocks){
             //Get new stock values
             get_stock_prices();
             update_stocks = FALSE;
-        }*/
+        }
     }
 }
 
