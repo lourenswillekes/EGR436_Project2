@@ -130,7 +130,9 @@ int warning_count = 0;
 extern uint16_t menu_text_color;
 extern uint16_t highlight_text_color;
 
-char stocks[200];
+char stocks[100];
+
+bool enable_stock_display = FALSE;
 
 uint8_t getBMEData(void);
 int ESP8266CmdOut(int cmdID, const char *cmdOut, char *response, int postCmdWait, int errorResponseWait, bool retry);
@@ -138,84 +140,24 @@ void send_Warning_Messages(float value);
 void updateOutputValues(void);
 void upload_to_googlesheets(void);
 int queryWunderground(void);
-
-void get_stock_prices(void){
-    char ESP8266String[300];
-    char StockRequest[2000];
-    int success = 0;
-
-    //memset(buffer, 0, BUFFER_LENGTH);
-
-    sprintf(StockRequest,"GET "
-                "https://api.thingspeak.com/apps/thinghttp/send_request?api_key=1K4U5L6STJR5HD5G"
-                " HTTP/1.1\r\nHost: api.thingspeak.com\r\nUser-Agent: ESP8266/1.0\r\nConnection: "
-                "close\r\n\r\n");
-
-    int formLength=strlen(StockRequest);
-
-    do{
-        strcpy(ESP8266String,"AT+CIPSTART=\"TCP\",\"api.thingspeak.com\",80\r\n");
-        success = ESP8266CmdOut(4, ESP8266String, "OK", 3000, 1000, TRUE);
-
-        if(success){
-            sprintf(ESP8266String, "AT+CIPSEND=%d\r\n",formLength);
-            success = ESP8266CmdOut(5, ESP8266String, "OK", 500, 500, TRUE);
-        }
-
-        if(success){
-            recieving_JASON = TRUE;
-            jIdx = 0;
-            success = ESP8266CmdOut(6, StockRequest, "CLOSED", 3000, 1000, FALSE);
-
-        }
-    }while(!success);
-
-    Timer32_waitms(500);
-    recieving_JASON = FALSE;
+void get_stock_prices(void);
 
 
-    char *res = NULL;
-    char data[25];
-    char stockStr[200];
-    int count;
-    res = strstr(JASON_Buf, "Stock Quotes\":");
-    for(count = 0; count < 5; count++){
-        res = strstr(res, "1. symbol\":");
-        if(res != NULL){
-            sscanf(res,"1. symbol\":%s,",data);
-            UART_transmitString(EUSCI_A0_BASE, data);
-        }
-        strcat(stockStr,data);
-        stockStr[strlen(stockStr)-1]=':';
-
-        res = strstr(res, "2. price\":");
-        if(res != NULL){
-            sscanf(res,"2. price\":%s,",data);
-            UART_transmitString(EUSCI_A0_BASE, data);
-        }
-        strcat(stockStr,data);
-        stockStr[strlen(stockStr)-1]='\0';
-        strcat(stockStr," | ");
-    }
-    stockStr[strlen(stockStr)-1]='\0';
-    UART_transmitString(EUSCI_A0_BASE, stockStr);
-    strcpy(stocks,stockStr);
-    /*int offset;
-    int charsToPrint = 13;
-
-    for (offset = 0; offset < strlen(stocks); offset++)
-
-    {
-
-
-        ST7735_DrawString2(0,110,&stocks[offset],menu_text_color,ST7735_BLACK);
-
-        Timer32_waitms(200);
-    }*/
-
-}
-
+bool update_webpage_data = FALSE;
+bool check_BME = FALSE;
+bool update_stocks = FALSE;
 int str_offset = 0;
+RTC_C_Calendar currentTime =
+{
+ // sec, min, hour, day of week, day of month, month, year
+     00,
+     50,
+     20,
+     05,
+     02,
+     03,
+     2018
+};
 
 int main(void)
 {
@@ -296,16 +238,24 @@ int main(void)
     //Enable Module
     MAP_GPIO_setOutputHighOnPin(GPIO_PORT_P4, GPIO_PIN1);
 
+
+
+#if DISPLAY_METHOD == LCD || DISPLAY_METHOD == LCD_AND_GOOGLE_SHEETS
+    ST7735_DrawString2(20,50,"Start-up",menu_text_color,ST7735_BLACK);
+    //Set mode
+    success = ESP8266CmdOut(1, AT_MODE, "OK", 2000, 100, TRUE);
+    ST7735_DrawString2(20,50,"Start-up.",menu_text_color,ST7735_BLACK);
+    //Connect to Wi-Fi
+    success = ESP8266CmdOut(2, AT_WIFI, "OK", 6000, 200, TRUE);
+    ST7735_DrawString2(20,50,"Start-up..",menu_text_color,ST7735_BLACK);
+    //Query for time from NIST
+    success = ESP8266CmdOut(3, AT_NIST, "IPD", 5000, 5000, TRUE);
+#else
     //Set mode
     success = ESP8266CmdOut(1, AT_MODE, "OK", 2000, 100, TRUE);
 
     //Connect to Wi-Fi
     success = ESP8266CmdOut(2, AT_WIFI, "OK", 6000, 200, TRUE);
-
-#if DISPLAY_METHOD == LCD || DISPLAY_METHOD == LCD_AND_GOOGLE_SHEETS
-    //Query for time from NIST
-    success = ESP8266CmdOut(3, AT_NIST, "IPD", 5000, 5000, TRUE);
-#else
     success = 0;
 #endif
     if(success){
@@ -313,6 +263,9 @@ int main(void)
         res += 8; // move to start of time and date
         sscanf(res, "%d %d-%d-%d %d:%d:%d", &julian, &year, &month, &day, &hour, &minute, &second);
         hour = (hour + 20) % 24;
+        if(hour >=20){
+            day--;
+        }
     }else{
         //set default time
         year = 7777;
@@ -333,33 +286,37 @@ int main(void)
     RTC_setFromCalendar(&currentTime);
 
 #if DISPLAY_METHOD == LCD || DISPLAY_METHOD == LCD_AND_GOOGLE_SHEETS
+    ST7735_DrawString2(20,50,"Start-up...",menu_text_color,ST7735_BLACK);
+    Timer32_waitms(20);
+    result = getBMEData();
+
+    //Get display data
+    get_stock_prices();
+
+    Output_Clear();
+
     //update LCD
     Timer32_waitms(100);
     create_data_display();
     Timer32_waitms(100);
+    queryWunderground();
     updateTimeandDate();
-
-    Timer32_waitms(20);
-    result = getBMEData();
     updateDataDisplay();
-    //update_power_display(output_voltage,output_current,input_current,battery_current);
+    //start scrolling stock data
+    enable_stock_display = TRUE;
 #endif
 
 #if BATTERY_ENABLED == 1
     updateOutputValues();
 #endif
 
-#if DISPLAY_METHOD == LCD || DISPLAY_METHOD == LCD_AND_GOOGLE_SHEETS
-    queryWunderground();
-    get_stock_prices();
-#endif
     Timer32_waitms(100);
 
     while(1)
     {
 #if DISPLAY_METHOD == LCD || DISPLAY_METHOD == LCD_AND_GOOGLE_SHEETS
         //Update LCD Displayed Time
-        if (59 < second_count)
+       /*if((second_count % 60) == 0)
         {
             second_count = 0;
             currentTime = RTC_read();
@@ -367,20 +324,24 @@ int main(void)
 
             //update_power_display(output_voltage,output_current,input_current,battery_current);
             queryWunderground();
-        }
+        }*/
 #endif
 
 #if DISPLAY_METHOD == GOOGLE_SHEETS || DISPLAY_METHOD == LCD_AND_GOOGLE_SHEETS
         //Push new data to google sheets
-        if((second_count % 30) == 0){
+        if(update_webpage_data){
             MAP_GPIO_setOutputHighOnPin(GPIO_PORT_P2, GPIO_PIN2);
 
             // connect to Google pushingbox API
             upload_to_googlesheets();
             MAP_GPIO_setOutputLowOnPin(GPIO_PORT_P2, GPIO_PIN2);
+
+            queryWunderground();
+            update_webpage_data = FALSE;
         }
 #endif
-        if((second_count % 20) == 0){
+
+        if(check_BME){
             result = getBMEData();
 
 #if BATTERY_ENABLED == 1
@@ -405,14 +366,14 @@ int main(void)
                 warning_count++;
             }
 #endif
+            check_BME = FALSE;
         }
-       if((second_count % 3) == 0){
-           str_offset++;
-           if(str_offset == strlen(stocks)-1){
-               str_offset=0;
-           }
-           ST7735_DrawString2(0,110,&stocks[str_offset],menu_text_color,ST7735_BLACK);
-       }
+
+        if(update_stocks){
+            //Get new stock values
+            get_stock_prices();
+            update_stocks = FALSE;
+        }
     }
 }
 
@@ -449,6 +410,69 @@ int ESP8266CmdOut(int cmdID, const char *cmdOut, char *response, int postCmdWait
         attempt_count++;
     }
     return successful;
+}
+
+void get_stock_prices(void){
+    char ESP8266String[300];
+    char StockRequest[2000];
+    int success = 0;
+
+    sprintf(StockRequest,"GET "
+                "https://api.thingspeak.com/apps/thinghttp/send_request?api_key=1K4U5L6STJR5HD5G"
+                " HTTP/1.1\r\nHost: api.thingspeak.com\r\nUser-Agent: ESP8266/1.0\r\nConnection: "
+                "close\r\n\r\n");
+
+    int formLength=strlen(StockRequest);
+
+    do{
+        strcpy(ESP8266String,"AT+CIPSTART=\"TCP\",\"api.thingspeak.com\",80\r\n");
+        success = ESP8266CmdOut(4, ESP8266String, "OK", 3000, 1000, TRUE);
+
+        if(success){
+            sprintf(ESP8266String, "AT+CIPSEND=%d\r\n",formLength);
+            success = ESP8266CmdOut(5, ESP8266String, "OK", 500, 500, TRUE);
+        }
+
+        if(success){
+            recieving_JASON = TRUE;
+            jIdx = 0;
+            success = ESP8266CmdOut(6, StockRequest, "CLOSED", 3000, 1000, FALSE);
+
+        }
+    }while(!success);
+
+    Timer32_waitms(500);
+    recieving_JASON = FALSE;
+
+
+    char *res = NULL;
+    char data[25];
+    char stockStr[100];
+    int count;
+    res = strstr(JASON_Buf, "Stock Quotes\":");
+    for(count = 0; count < 5; count++){
+        res = strstr(res, "1. symbol\":");
+        if(res != NULL){
+            sscanf(res,"1. symbol\":%s,",data);
+            UART_transmitString(EUSCI_A0_BASE, data);
+        }
+        strcat(stockStr,data);
+        stockStr[strlen(stockStr)-1]=':';
+
+        res = strstr(res, "2. price\":");
+        if(res != NULL){
+            sscanf(res,"2. price\":%s,",data);
+            UART_transmitString(EUSCI_A0_BASE, data);
+        }
+        strcat(stockStr,data);
+        stockStr[strlen(stockStr)-1]='\0';
+        strcat(stockStr," | ");
+    }
+    stockStr[strlen(stockStr)-1]='\0';
+    UART_transmitString(EUSCI_A0_BASE, stockStr);
+    stockStr[0]='>';
+
+    memcpy(stocks,stockStr,strlen(stockStr));
 }
 
 void updateOutputValues(void)
@@ -523,12 +547,10 @@ int queryWunderground(void){
         }
     }while(!success);
 
-    //UART_transmitString(EUSCI_A0_BASE, "\nJASON\n");
-   //UART_transmitString(EUSCI_A0_BASE, &buffer[0]);
 
     Timer32_waitms(500);
+
     //Parse JSON for values
-        //Find "weather" and "temp_f" and "windchill_f"
     char *res = NULL;
     char forecast_data[25];
     res = strstr(JASON_Buf, "temp_f\":");
@@ -626,6 +648,26 @@ void RTC_ISR(void)
 #if DISPLAY_METHOD == LCD || DISPLAY_METHOD == LCD_AND_GOOGLE_SHEETS
         visual_indication = 1;
         updateIndicator((second_count % 2));
+        if(enable_stock_display){
+            str_offset++;
+            if(str_offset == strlen(stocks)-16){
+                str_offset=0;
+            }
+            ST7735_DrawString2(0,110,&stocks[str_offset],menu_text_color,ST7735_BLACK);
+        }
+
+        if((second_count % 60) == 0){
+            currentTime = RTC_read();
+            updateTimeandDate();
+            update_webpage_data = TRUE;
+        }
+        if((second_count % 10) == 0){
+            check_BME = TRUE;
+        }
+        if((second_count % 37) == 0){
+            update_stocks = TRUE;
+        }
+
 #endif
     }
 
