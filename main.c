@@ -287,7 +287,7 @@ int main(void)
 
 #if DISPLAY_METHOD == LCD || DISPLAY_METHOD == LCD_AND_GOOGLE_SHEETS
     ST7735_DrawString2(20,50,"Start-up...",menu_text_color,ST7735_BLACK);
-    Timer32_waitms(20);
+    Timer32_waitms(200);
     result = getBMEData();
 
     //Get display data
@@ -299,9 +299,12 @@ int main(void)
     Timer32_waitms(100);
     create_data_display();
     Timer32_waitms(100);
-    queryWunderground();
     updateTimeandDate();
+    Timer32_waitms(100);
     updateDataDisplay();
+    Timer32_waitms(100);
+    queryWunderground();
+
     //start scrolling stock data
     enable_stock_display = TRUE;
 #endif
@@ -504,6 +507,7 @@ void upload_to_googlesheets(void){
     do{
         strcpy(ESP8266String,"AT+CIPSTART=\"TCP\",\"api.pushingbox.com\",80\r\n");
         success = ESP8266CmdOut(4, ESP8266String, "CONNECT", 3000, 500, TRUE);
+        //bool success2 = ESP8266CmdOut(4,ESP8266String, "ALREADY CONNECTED", 1000,1000,TRUE);
 
         if(success){
             sprintf(ESP8266String, "AT+CIPSEND=%d\r\n",formLength);
@@ -511,7 +515,7 @@ void upload_to_googlesheets(void){
         }
 
         if(success){
-            success = ESP8266CmdOut(6, PostSensorData, "SEND OK", 500, 1000, FALSE);
+            success = ESP8266CmdOut(6, PostSensorData, "SEND OK", 1500, 1000, FALSE);
         }
     }while(!success);
 }
