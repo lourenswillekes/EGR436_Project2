@@ -372,11 +372,11 @@ int main(void)
             check_BME = FALSE;
         }
 
-        if(update_stocks){
+        /*if(update_stocks){
             //Get new stock values
             get_stock_prices();
             update_stocks = FALSE;
-        }
+        }*/
     }
 }
 
@@ -393,7 +393,8 @@ int ESP8266CmdOut(int cmdID, const char *cmdOut, char *response, int postCmdWait
         UART_transmitString(EUSCI_A2_BASE, cmdOut);
         Timer32_waitms(postCmdWait);
         res = strstr(buffer, response);
-        if (NULL != res)
+        char *res2 = strstr(buffer, "ALREADY CONNECTED");
+        if (NULL != res || res2 != NULL)
         {
             sprintf(out,"%i--Successful\r\n",cmdID);
             UART_transmitString(EUSCI_A0_BASE, out);
@@ -515,7 +516,7 @@ void upload_to_googlesheets(void){
         }
 
         if(success){
-            success = ESP8266CmdOut(6, PostSensorData, "SEND OK", 1500, 1000, FALSE);
+            success = ESP8266CmdOut(6, PostSensorData, "CLOSED", 1500, 1000, FALSE);
         }
     }while(!success);
 }
@@ -546,7 +547,7 @@ int queryWunderground(void){
         if(success){
             //success = ESP8266CmdOut(12, PostSensorData, "SEND OK", 500, 1000, FALSE);
             recieving_JASON = TRUE;
-            success = ESP8266CmdOut(12, PostSensorData, "nowcast", 3000, 1300, FALSE);
+            success = ESP8266CmdOut(12, PostSensorData, "CLOSED", 3000, 1300, FALSE);
             recieving_JASON = FALSE;
         }
     }while(!success);
