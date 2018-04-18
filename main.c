@@ -140,7 +140,7 @@ void send_Warning_Messages(float value);
 void updateOutputValues(void);
 void upload_to_googlesheets(void);
 int queryWunderground(void);
-void get_stock_prices(void);
+int get_stock_prices(void);
 
 
 bool update_webpage_data = FALSE;
@@ -291,7 +291,9 @@ int main(void)
     result = getBMEData();
 
     //Get display data
-    get_stock_prices();
+   while(!get_stock_prices()){
+       Timer32_waitms(50);
+   }
 
     Output_Clear();
 
@@ -416,7 +418,7 @@ int ESP8266CmdOut(int cmdID, const char *cmdOut, char *response, int postCmdWait
     return successful;
 }
 
-void get_stock_prices(void){
+int get_stock_prices(void){
     char ESP8266String[300];
     char StockRequest[2000];
     int success = 0;
@@ -459,24 +461,32 @@ void get_stock_prices(void){
         if(res != NULL){
             sscanf(res,"1. symbol\":%s,",data);
             UART_transmitString(EUSCI_A0_BASE, data);
+            strcat(stockStr,data);
+            stockStr[strlen(stockStr)-1]=':';
+        }else{
+            return 0;
         }
-        strcat(stockStr,data);
-        stockStr[strlen(stockStr)-1]=':';
+
 
         res = strstr(res, "2. price\":");
         if(res != NULL){
             sscanf(res,"2. price\":%s,",data);
             UART_transmitString(EUSCI_A0_BASE, data);
+            strcat(stockStr,data);
+            stockStr[strlen(stockStr)-1]='\0';
+            strcat(stockStr," | ");
+        }else{
+            return 0;
         }
-        strcat(stockStr,data);
-        stockStr[strlen(stockStr)-1]='\0';
-        strcat(stockStr," | ");
+
     }
     stockStr[strlen(stockStr)-1]='\0';
     UART_transmitString(EUSCI_A0_BASE, stockStr);
     stockStr[0]='>';
 
     memcpy(stocks,stockStr,strlen(stockStr));
+
+    return success;
 }
 
 void updateOutputValues(void)
@@ -558,27 +568,27 @@ int queryWunderground(void){
     //Parse JSON for values
     char *res = NULL;
     char forecast_data[25];
+    char temp[20];
     res = strstr(JASON_Buf, "temp_f\":");
     if(res != NULL){
         sscanf(res,"temp_f\":%s,",forecast_data);
         UART_transmitString(EUSCI_A0_BASE, forecast_data);
+        sprintf(temp,"T %c%c%cF",forecast_data[0],forecast_data[1],247);
+        ST7735_DrawString2(95,70,temp,menu_text_color,ST7735_BLACK);
     }
 
-    //print
-    char temp[20];
-    sprintf(temp,"T %c%c%cF",forecast_data[0],forecast_data[1],247);
-    ST7735_DrawString2(95,70,temp,menu_text_color,ST7735_BLACK);
 
     memset(forecast_data, 0, 25);
     res = strstr(JASON_Buf, "feelslike_f\":");
     if(res != NULL){
         sscanf(res,"feelslike_f\":%s,",forecast_data);
         UART_transmitString(EUSCI_A0_BASE, forecast_data);
+        //print
+        sprintf(temp,"F %c%c%cF",forecast_data[1],forecast_data[2],247);
+        ST7735_DrawString2(95,90,temp,menu_text_color,ST7735_BLACK);
     }
 
-    //print
-    sprintf(temp,"F %c%c%cF",forecast_data[1],forecast_data[2],247);
-    ST7735_DrawString2(95,90,temp,menu_text_color,ST7735_BLACK);
+
 
     return success;
 }
@@ -666,14 +676,15 @@ void RTC_ISR(void)
             updateTimeandDate();
             update_webpage_data = TRUE;
         }
-        if((second_count % 10) == 0){
-            check_BME = TRUE;
-        }
+
         if((second_count % 37) == 0){
             update_stocks = TRUE;
         }
 
 #endif
+        if((second_count % 10) == 0){
+            check_BME = TRUE;
+        }
     }
 
 }
