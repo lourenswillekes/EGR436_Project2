@@ -51,7 +51,7 @@
  *            |                  |
  * Author: 
 *******************************************************************************/
-
+/*Includes*/
 #include "driverlib.h"
 #include <stdint.h>
 #include <stdbool.h>
@@ -63,8 +63,10 @@
 #include "environment_sensor.h"
 #include "ST7735.h"
 
-
+//Used for larger UART buffers
 #define BUFFER_LENGTH 3000
+
+//Solar Power Module Connected
 #define ENABLED  1
 #define DISABLED 0
 #define BATTERY_ENABLED DISABLED
@@ -77,8 +79,7 @@
 #define DISPLAY_METHOD          LCD_AND_GOOGLE_SHEETS
 
 
-// vout monitor resistor
-// TODO: measure this with dmm to get accurate value
+//vout monitor resistor
 #define RSENSE 1
 
 
@@ -87,15 +88,16 @@
 #define L 1
 #define USER J
 
+//Frequently Used AT Commands
 #if USER == J
 const char *AT_WIFI = "AT+CWJAP=\"Samsung Galaxy S7 9448\",\"clke5086\"\r\n";
 #elif USER==L
 const char *AT_WIFI = "AT+CWJAP=\"Verizon-SM-G935V-B089\",\"brgf962^\"\r\n";
 #endif
-
 const char *AT_NIST = "AT+CIPSTART=\"TCP\",\"time.nist.gov\",13\r\n";
 const char *AT_MODE = "AT+CWMODE_CUR=3\r\n";
 
+//UART Communication Variables
 volatile char buffer[BUFFER_LENGTH];
 volatile char JASON_Buf[BUFFER_LENGTH];
 bool recieving_JASON = FALSE;
@@ -103,10 +105,8 @@ int jIdx = 0;
 volatile uint8_t idx = 0;
 volatile uint8_t response_complete = 0;
 
-char *stockAPIKey = "R4D8SF5DHSXF8RGN";
-
+//Time
 volatile int second_count = 0;
-
 int visual_indication = 0;
 
 //structures defined in LCD module
@@ -118,33 +118,31 @@ int read_sensor = 0;
 struct bme280_dev dev;
 struct bme280_data compensated_data;
 
+//ADC Varibables
 float output_voltage = 3.3;
 float output_current = 20.3;
 float input_current = 22.3;
 float battery_current = 18.2;
 
+//Email and Text
 int warning_count = 0;
 
+//LCD
 extern uint16_t menu_text_color;
 extern uint16_t highlight_text_color;
 
+//Stocks
 char stocks[100];
-
 bool enable_stock_display = FALSE;
+int str_offset = 0;
+char *stockAPIKey = "R4D8SF5DHSXF8RGN";
 
-uint8_t getBMEData(void);
-int ESP8266CmdOut(int cmdID, const char *cmdOut, char *response, int postCmdWait, int errorResponseWait, bool retry);
-void send_Warning_Messages(float value);
-void updateOutputValues(void);
-void upload_to_googlesheets(void);
-int queryWunderground(void);
-int get_stock_prices(void);
-
-
+//Time Flags
 bool update_webpage_data = FALSE;
 bool check_BME = FALSE;
 bool update_stocks = FALSE;
-int str_offset = 0;
+
+//Time
 RTC_C_Calendar currentTime =
 {
  // sec, min, hour, day of week, day of month, month, year
@@ -156,6 +154,15 @@ RTC_C_Calendar currentTime =
      03,
      2018
 };
+
+/*Function Prototypes*/
+uint8_t getBMEData(void);
+int ESP8266CmdOut(int cmdID, const char *cmdOut, char *response, int postCmdWait, int errorResponseWait, bool retry);
+void send_Warning_Messages(float value);
+void updateOutputValues(void);
+void upload_to_googlesheets(void);
+int queryWunderground(void);
+int get_stock_prices(void);
 
 int main(void)
 {
