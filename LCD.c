@@ -91,7 +91,7 @@ volatile display_cell outside={
 };
 #endif
 
-volatile display_cell BME_Senosr={
+volatile display_cell BME_Sensor={
                 0,      //x_start
                 0,      //x_finish
                 0,      //y_start
@@ -215,17 +215,17 @@ void create_data_display(void){
 void updateDataDisplay(void){
     char data[12];
     //print temp
-    sprintf(data,"%02.0f%cF%c",BME_Senosr.temperature,247,BME_Senosr.temp_change_direction);
+    sprintf(data,"%02.0f%cF%c",BME_Sensor.temperature,247,BME_Sensor.temp_change_direction);
     TenMsDelay(1);
     ST7735_DrawString2(20,50,data,menu_text_color,ST7735_BLACK);
 
     //print humidity
-    sprintf(data,"%02.0f%%%c",BME_Senosr.humidity,BME_Senosr.humidity_change_direction);
+    sprintf(data,"%02.0f%%%c",BME_Sensor.humidity,BME_Sensor.humidity_change_direction);
     TenMsDelay(1);
     ST7735_DrawString2(20,70,data,menu_text_color,ST7735_BLACK);
 
     //print bp
-    sprintf(data,"%2.1f%c",BME_Senosr.pressure,BME_Senosr.pressure_change_direction);
+    sprintf(data,"%2.1f%c",BME_Sensor.pressure,BME_Sensor.pressure_change_direction);
     TenMsDelay(1);
     ST7735_DrawString2(20,90,data,menu_text_color,ST7735_BLACK);
 }
@@ -257,20 +257,20 @@ void update_totals(void){
     //increments measurement totals and count for average comparisons
     //Also the direction of change is set
 
-    BME_Senosr.measurement_count++;
-    BME_Senosr.temp_total+=BME_Senosr.temperature;
-    BME_Senosr.pressure_total+=BME_Senosr.pressure;
-    BME_Senosr.humidity_total+=BME_Senosr.humidity;
+    BME_Sensor.measurement_count++;
+    BME_Sensor.temp_total+=BME_Sensor.temperature;
+    BME_Sensor.pressure_total+=BME_Sensor.pressure;
+    BME_Sensor.humidity_total+=BME_Sensor.humidity;
 
-    BME_Senosr.temp_change_direction=getChangeOrientation(BME_Senosr.temp_total,
-                                                          BME_Senosr.measurement_count,
-                                                          BME_Senosr.temperature);
-    BME_Senosr.humidity_change_direction=getChangeOrientation(BME_Senosr.humidity_total,
-                                                          BME_Senosr.measurement_count,
-                                                          BME_Senosr.humidity);
-    BME_Senosr.pressure_change_direction=getChangeOrientation(BME_Senosr.pressure_total,
-                                                          BME_Senosr.measurement_count,
-                                                          BME_Senosr.pressure);
+    BME_Sensor.temp_change_direction=getChangeOrientation(BME_Sensor.temp_total,
+                                                          BME_Sensor.measurement_count,
+                                                          BME_Sensor.temperature);
+    BME_Sensor.humidity_change_direction=getChangeOrientation(BME_Sensor.humidity_total,
+                                                          BME_Sensor.measurement_count,
+                                                          BME_Sensor.humidity);
+    BME_Sensor.pressure_change_direction=getChangeOrientation(BME_Sensor.pressure_total,
+                                                          BME_Sensor.measurement_count,
+                                                          BME_Sensor.pressure);
 }
 
 

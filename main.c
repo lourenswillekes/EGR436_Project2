@@ -53,16 +53,14 @@
 *******************************************************************************/
 
 #include "driverlib.h"
-
 #include <stdint.h>
 #include <stdbool.h>
-
 #include "ADC_driver.h"
 #include "RTC_driver.h"
 #include "Timer32_driver.h"
 #include "UART_driver.h"
 #include "LCD.h"
-#include "environment_sensor.h"     //BME280 library
+#include "environment_sensor.h"
 #include "ST7735.h"
 
 
@@ -112,7 +110,7 @@ volatile int second_count = 0;
 int visual_indication = 0;
 
 //structures defined in LCD module
-extern volatile display_cell BME_Senosr;
+extern volatile display_cell BME_Sensor;
 
 //BME280 variables
 int res;
@@ -259,6 +257,7 @@ int main(void)
     success = 0;
 #endif
     if(success){
+        //Parse NIST data
         res = strstr(buffer, "IPD,51:");
         res += 8; // move to start of time and date
         sscanf(res, "%d %d-%d-%d %d:%d:%d", &julian, &year, &month, &day, &hour, &minute, &second);
@@ -290,21 +289,26 @@ int main(void)
     Timer32_waitms(200);
     result = getBMEData();
 
-    //Get display data
-   while(!get_stock_prices()){
+    //Get stockdisplay data
+    while(!get_stock_prices()){
        Timer32_waitms(50);
-   }
+    }
 
+    //Remove startup text
     Output_Clear();
 
     //update LCD
     Timer32_waitms(100);
+    //Create display titles and grid
     create_data_display();
     Timer32_waitms(100);
+    //Add time and date
     updateTimeandDate();
     Timer32_waitms(100);
+    //Add BME data
     updateDataDisplay();
     Timer32_waitms(100);
+    //Query for forecast data and place on screen
     queryWunderground();
 
     //start scrolling stock data
@@ -319,37 +323,27 @@ int main(void)
 
     while(1)
     {
-#if DISPLAY_METHOD == LCD || DISPLAY_METHOD == LCD_AND_GOOGLE_SHEETS
-        //Update LCD Displayed Time
-       /*if((second_count % 60) == 0)
-        {
-            second_count = 0;
-            currentTime = RTC_read();
-            updateTimeandDate();
-
-            //update_power_display(output_voltage,output_current,input_current,battery_current);
-            queryWunderground();
-        }*/
-#endif
-
 #if DISPLAY_METHOD == GOOGLE_SHEETS || DISPLAY_METHOD == LCD_AND_GOOGLE_SHEETS
         //Push new data to google sheets
         if(update_webpage_data){
             MAP_GPIO_setOutputHighOnPin(GPIO_PORT_P2, GPIO_PIN2);
 
-            // connect to Google pushingbox API
+            //Connect to Google pushingbox API
             upload_to_googlesheets();
             MAP_GPIO_setOutputLowOnPin(GPIO_PORT_P2, GPIO_PIN2);
 
+            //Update forecast data
             queryWunderground();
             update_webpage_data = FALSE;
         }
 #endif
 
         if(check_BME){
+            //Get new BME data
             result = getBMEData();
 
 #if BATTERY_ENABLED == 1
+            //Read output current and voltage
             updateOutputValues();
 #endif
 
@@ -360,9 +354,10 @@ int main(void)
             //Send new values to the screen
             updateDataDisplay();
 
-            if(BME_Senosr.humidity > 50.0){
+            //Send Email and Text Warning when Humidity is above 50%
+            if(BME_Sensor.humidity > 50.0){
                 if(warning_count == 0){
-                    send_Warning_Messages(BME_Senosr.humidity);
+                    send_Warning_Messages(BME_Sensor.humidity);
                 }else{
                     if(warning_count > 6){
                         warning_count = 0;
@@ -391,11 +386,17 @@ int ESP8266CmdOut(int cmdID, const char *cmdOut, char *response, int postCmdWait
     int attempt_count = 0;
 
     while(!successful && attempt_count < 5){
+        //reset idx to overwrite buffer
         idx = 0;
+        //send command
         UART_transmitString(EUSCI_A2_BASE, cmdOut);
+        //wait to allow for ESP to send response
         Timer32_waitms(postCmdWait);
+        //search for response
         res = strstr(buffer, response);
+        //search for alternate response
         char *res2 = strstr(buffer, "ALREADY CONNECTED");
+
         if (NULL != res || res2 != NULL)
         {
             sprintf(out,"%i--Successful\r\n",cmdID);
@@ -410,7 +411,7 @@ int ESP8266CmdOut(int cmdID, const char *cmdOut, char *response, int postCmdWait
             if(!retry){
                 break;
             }else{
-                Timer32_waitms(errorResponseWait); //give the user time to setup wifi
+                Timer32_waitms(errorResponseWait); //prevents rapid retries and lockouts
             }
         }
         attempt_count++;
@@ -509,8 +510,8 @@ void upload_to_googlesheets(void){
             "&celData=%f&fehrData=%f&Humidity=%f"
             "&Pressure=%f&Vout=%f&Iin=%f&Ibat=%f&Iout=%f"
             " HTTP/1.1\r\nHost: api.pushingbox.com\r\nUser-Agent: ESP8266/1.0\r\nConnection: "
-            "close\r\n\r\n",USER,BATTERY_ENABLED,((BME_Senosr.temperature - 32) / 1.8 ),
-            BME_Senosr.temperature, BME_Senosr.humidity,BME_Senosr.pressure,output_voltage,
+            "close\r\n\r\n",USER,BATTERY_ENABLED,((BME_Sensor.temperature - 32) / 1.8 ),
+            BME_Sensor.temperature, BME_Sensor.humidity,BME_Sensor.pressure,output_voltage,
             input_current,battery_current,output_current);
 
     int formLength=strlen(PostSensorData);
@@ -518,7 +519,6 @@ void upload_to_googlesheets(void){
     do{
         strcpy(ESP8266String,"AT+CIPSTART=\"TCP\",\"api.pushingbox.com\",80\r\n");
         success = ESP8266CmdOut(4, ESP8266String, "CONNECT", 3000, 500, TRUE);
-        //bool success2 = ESP8266CmdOut(4,ESP8266String, "ALREADY CONNECTED", 1000,1000,TRUE);
 
         if(success){
             sprintf(ESP8266String, "AT+CIPSEND=%d\r\n",formLength);
@@ -555,7 +555,6 @@ int queryWunderground(void){
         }
 
         if(success){
-            //success = ESP8266CmdOut(12, PostSensorData, "SEND OK", 500, 1000, FALSE);
             recieving_JASON = TRUE;
             success = ESP8266CmdOut(12, PostSensorData, "CLOSED", 3000, 1300, FALSE);
             recieving_JASON = FALSE;
@@ -634,16 +633,16 @@ uint8_t getBMEData(void){
 
     //scale by 1000 for mmHg. Conversion leaves the value in decimal notation
     //Save current formated measurement
-    BME_Senosr.pressure = temp_pressure * 1000;
+    BME_Sensor.pressure = temp_pressure * 1000;
 
     //Correct for altitude
-    BME_Senosr.pressure += 17;
+    BME_Sensor.pressure += 17;
 
     //Save formated humidity measurement
-    BME_Senosr.humidity = compensated_data.humidity/1000.0; //Convert value to percentage
+    BME_Sensor.humidity = compensated_data.humidity/1000.0; //Convert value to percentage
 
     //Convert from degrees C to F and save
-    BME_Senosr.temperature = (((compensated_data.temperature / 100.0) * (9.0/5.0)) + 32.0);
+    BME_Sensor.temperature = (((compensated_data.temperature / 100.0) * (9.0/5.0)) + 32.0);
 
     return res;
 }
@@ -656,13 +655,16 @@ void RTC_ISR(void)
     status = MAP_RTC_C_getEnabledInterruptStatus();
     MAP_RTC_C_clearInterruptFlag(status);
 
-    // increment counter to keep time
     if (status & RTC_C_CLOCK_READ_READY_INTERRUPT)
     {
+        // increment counter to keep time
         second_count++;
 #if DISPLAY_METHOD == LCD || DISPLAY_METHOD == LCD_AND_GOOGLE_SHEETS
+        //used to flash ':'
         visual_indication = 1;
         updateIndicator((second_count % 2));
+
+        //Used for stock scrolling
         if(enable_stock_display){
             str_offset++;
             if(str_offset == strlen(stocks)-16){
@@ -671,17 +673,20 @@ void RTC_ISR(void)
             ST7735_DrawString2(0,110,&stocks[str_offset],menu_text_color,ST7735_BLACK);
         }
 
+        //Update time every minute
         if((second_count % 60) == 0){
             currentTime = RTC_read();
             updateTimeandDate();
             update_webpage_data = TRUE;
         }
 
+        //Trigger stock update
         if((second_count % 37) == 0){
             update_stocks = TRUE;
         }
 
 #endif
+        //Trigger BME update
         if((second_count % 10) == 0){
             check_BME = TRUE;
         }
