@@ -166,11 +166,8 @@ int get_stock_prices(void);
 
 int main(void)
 {
-    int j;
     char *res = NULL;
     uint8_t result;
-    int err = 0;
-    int invalid = 1;
     int success;
 
     int julian, year, month, day, hour, minute, second;
@@ -185,7 +182,6 @@ int main(void)
          03,
          2018
     };
-    char time_and_date[32];
 
 
     /* Stop Watchdog  */
