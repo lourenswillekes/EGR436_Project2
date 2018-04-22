@@ -18,17 +18,8 @@
 #if DISPLAY_METHOD == LCD || DISPLAY_METHOD == LCD_AND_GOOGLE_SHEETS
 #include "weatherUnderground.txt"
 #endif
-//#include "RTC_Module.h"
 #include "RTC_driver.h"
 
-/*Text File Includes*/
-#if 0 == 1
-#include "dark.txt"
-#include "overcast.txt"
-#include "partlySunny.txt"
-#include "sunny.txt"
-#include "twilight.txt"
-#endif
 
 uint16_t grid_color = ST7735_CYAN;
 uint16_t menu_text_color = ST7735_YELLOW;
@@ -40,56 +31,6 @@ uint8_t LCD_Rotation = 1;
 #define increaseing_arrow  24
 #define decreaseing_arrow  25
 #define no_change_arrow    61
-
-#if 0 == 1
-//create array for menu item names
-char *menu_names[5] = {
-                     {"0.5Hz"},
-                     {"1.0Hz"},
-                     {"2.0Hz"},
-                     {"5.0Hz"},
-                     {"LED 0/1"}
-};
-#endif
-
-
-#if 0 == 1
-volatile display_cell inside={
-                0,      //x_start
-                0,      //x_finish
-                0,      //y_start
-                0,      //y_finish
-                " ",    //display title
-                71.5,    //temp
-                22.5,    //humidity
-                760,     //Pressure
-                0,       //total temp
-                0,       //total humidity
-                0,       //total pressure
-                0,       //measurement count
-                no_change_arrow,
-                no_change_arrow,
-                no_change_arrow
-};
-
-volatile display_cell outside={
-                0,      //x_start
-                0,      //x_finish
-                0,      //y_start
-                0,      //y_finish
-                " ",    //display title
-                33.5,    //temp
-                22.0,    //humidity
-                750,     //Pressure
-                0,       //total temp
-                0,       //total humidity
-                0,       //total pressure
-                0,       //measurement count
-                no_change_arrow,
-                no_change_arrow,
-                no_change_arrow
-};
-#endif
 
 volatile display_cell BME_Sensor={
                 0,      //x_start
@@ -112,88 +53,10 @@ extern volatile int second_count;
 
 RTC_C_Calendar time;
 
-#if 0 == 1
-forecast light_status_items[5]={
-    {DARK,dark , 32,32 ,60 ,60 ,0 ,0},
-    {TWILIGHT,twilight,32 ,32 ,60 ,60 ,0 ,0},
-    {OVERCAST,overcast,32 ,32 ,60 ,60 ,0 ,0},
-    {PARTLY_SUNNY,partlySunny,32 ,32 ,60 ,60 ,0 ,0},
-    {SUNNY,sunny,32 ,32 ,60 ,60 ,0 ,0}
-};
-
-menu_item menu_options[5]={
-    {item1,"0.5Hz",8,4,1,0,12000000,4},
-    {item2,"1.0Hz",8,5,0,0,12000000,2},
-    {item3,"2.0Hz",8,6,0,0,12000000,1},
-    {item4,"5.0Hz",8,7,0,0,4800000,1},
-    {item5,"LED 0/1",8,8,0,0,0,0}
-};
-
-menu_items num_to_menu_item(int x){
-    menu_items main_menu;
-    switch(x){
-    case 0:
-        main_menu = item1;
-        break;
-    case 1:
-        main_menu = item2;
-        break;
-    case 2:
-        main_menu = item3;
-        break;
-    case 3:
-        main_menu = item4;
-        break;
-    case 4:
-        main_menu = item5;
-        break;
-    }
-    return main_menu;
-}
-#endif
 void LCD_init(void){
     ST7735_InitR(INITR_REDTAB); // initialize LCD controller IC
     ST7735_SetRotation(LCD_Rotation);
 }
-#if 0 == 1
-Light_Status num_to_enum(int x){
-    Light_Status current_status;
-    switch(x){
-    case 0:
-        current_status = DARK;
-        break;
-    case 1:
-        current_status = TWILIGHT;
-        break;
-    case 2:
-        current_status = OVERCAST;
-        break;
-    case 3:
-        current_status = PARTLY_SUNNY;
-        break;
-    case 4:
-        current_status = SUNNY;
-        break;
-    }
-    return current_status;
-}
-
-void print_current_status_pic(Light_Status current_status){
-
-    int i;
-    for(i=0; i<5;i++){
-        if(light_status_items[i].light_quality == current_status){
-            ST7735_DrawBitmap(light_status_items[i].x, light_status_items[i].y, light_status_items[i].image, light_status_items[i].width, light_status_items[i].height);
-        }
-    }
-}
-
-
-void updateForecast(int forecast_code){
-    Light_Status new = num_to_enum(forecast_code);
-    print_current_status_pic(new);
-}
-#endif
 
 void create_data_display(void){
     ST7735_DrawFastHLine(0,25,160,grid_color);
@@ -289,13 +152,6 @@ int getChangeOrientation(float total, int count, float current){
 void printTimeandDate(void){
     char temp[10];
 
-    //Visual indication to the user that time has past
-    /*if((second_count % 2) == 0 )
-        sprintf(temp,"%02d:%02d",time.hours,time.minutes);
-    else
-        sprintf(temp,"%02d %02d",time.hours,time.minutes);
-    */
-
     sprintf(temp,"%02d %02d",time.hours,time.minutes);
 
     ST7735_DrawString2(0,5,temp,menu_text_color,ST7735_BLACK);
@@ -317,5 +173,3 @@ void updateTimeandDate(void){
     time = RTC_read();
     printTimeandDate();
 }
-
-
